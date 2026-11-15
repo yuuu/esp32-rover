@@ -5,21 +5,21 @@
 
 ## ファイル構成
 - `kicad/main.kicad_sch` / `.kicad_pcb` / `.kicad_pro` — メイン基板（制御基板）（XIAO ESP32-S3、モータドライバ TC78H653FTG）。KiCad関連の操作は konnect skill の手順に従うこと
-- `cad/rover_frame.py` — フレームの**唯一のソース**。`.FCStd` と STL はこのスクリプトから生成するので、直接編集しない
-- `cad/rover_frame.FCStd` — 組立モデル。`Printed` グループが印刷部品、`Reference` グループが部品のダミー形状
+- `cad/frame.py` — フレームの**唯一のソース**。`.FCStd` と STL はこのスクリプトから生成するので、直接編集しない
+- `cad/frame.FCStd` — 組立モデル。`Printed` グループが印刷部品、`Reference` グループが部品のダミー形状
 - `cad/stl/` — 印刷用 STL（Base_Plate, Mid_Deck, Top_Deck, Wheel_Hub_x2）
 
 ## コマンド
 ```sh
 # モデルと STL を作り直す（最後に部品ごとの valid/bbox と INTERFERENCE 一覧を表示する）
-/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/rover_frame.py 2>&1 | grep -E "valid=|INTERF|TOP_Z|Exception"
+/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/frame.py 2>&1 | grep -E "valid=|INTERF|TOP_Z|Exception"
 ```
 - `freecadcmd` は PATH に入っていない。上のフルパスで呼ぶ
 - 起動時に出る `3DconnexionNavlib` のエラーは無害なので無視してよい
 - FreeCAD MCP（GUI用の RPC と `execute_code_headless`）はつながらなかった。Bash から `freecadcmd` を直接使う
 - 画像で確認したいときは、`freecadcmd` で matplotlib を使うスクリプトを実行し、部品を1つずつ描画する（FreeCAD に同梱の python には matplotlib が入っている。システムの python3 には入っていない）。複数部品をまとめて描くと重なり順が崩れて判断に使えない
 
-## 設計の約束事（rover_frame.py）
+## 設計の約束事（frame.py）
 - 座標系: X=前、Y=左、Z=上。原点は左右の車軸の中点の真下の床面。単位は mm
 - 寸法はすべてファイル冒頭の定数にまとめる。値を変えたら作り直して、`INTERFERENCE` の出力を必ず確認する
   - `Hub_* x Motor_*` の約4mm³ は Dカット部分による正常な干渉。それ以外が出たら直す
@@ -32,7 +32,7 @@
   - 缶受け（Φ12.2+0.4）がピッタリ合うことは実物で確認済み
 
 ## テスト印刷
-- `cad/test_fit.py` で本体形状の一部を切り出して `cad/stl/test/` に出力する（TestFit_Motor, TestFit_LiDAR）。`rover_frame.py` を変更したら、こちらも作り直す
+- `cad/test_fit.py` で本体形状の一部を切り出して `cad/stl/test/` に出力する（TestFit_Motor, TestFit_LiDAR）。`frame.py` を変更したら、こちらも作り直す
 
 ## 部品と寸法の出典
 | 部品 | 型番 | 確認済みの寸法 |

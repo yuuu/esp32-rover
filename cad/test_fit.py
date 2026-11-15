@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-はめあい確認用テストピース (rover_frame.py の形状をそのまま切り出す)
+はめあい確認用テストピース (frame.py の形状をそのまま切り出す)
 
 実行:  /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/test_fit.py
 出力:  cad/stl/test/*.stl
@@ -13,7 +13,7 @@ import Mesh
 
 builtins._ROVER_IMPORT_ONLY = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import rover_frame as rf  # noqa: E402
+import frame as rf  # noqa: E402
 
 OUT_DIR = os.path.join(rf.OUT_DIR, "stl", "test")
 

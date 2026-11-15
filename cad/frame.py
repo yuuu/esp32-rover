@@ -2,8 +2,8 @@
 """
 ESP32 + LiDAR SLAM ローバー フレーム プロトタイプ (FreeCAD 1.x)
 
-実行:  /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/rover_frame.py
-出力:  cad/rover_frame.FCStd, cad/stl/*.stl
+実行:  /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/frame.py
+出力:  cad/frame.FCStd, cad/stl/*.stl
 
 座標系: X=前方, Y=左, Z=上, 原点=左右車輪軸の中点の真下 (床面)
 単位: mm
@@ -306,7 +306,11 @@ def main():
     except Exception:
         pass
 
-    doc.saveAs(os.path.join(OUT_DIR, "rover_frame.FCStd"))
+    # 生成物なので上書き前に消し、FreeCAD に .FCBak を作らせない
+    fcstd = os.path.join(OUT_DIR, "frame.FCStd")
+    if os.path.exists(fcstd):
+        os.remove(fcstd)
+    doc.saveAs(fcstd)
 
     # STL (印刷向き: 平らな面を下)
     stl_dir = os.path.join(OUT_DIR, "stl")
