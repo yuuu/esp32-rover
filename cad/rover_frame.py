@@ -21,7 +21,9 @@ OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 WHEEL_D, WHEEL_W = 60.0, 8.0
 WHEEL_HOLE_PITCH = 12.7
 # モータ MG12A06E-060310-50 (N20互換)
-GB_W, GB_H, GB_L = 10.0, 12.0, 9.0      # ギアボックス 幅(X) 高(Z) 長(Y)
+# ギアボックス 幅(X) 高(Z) 長(Y)。エンコーダ基板が受け台に当たらない向きでは
+# 12mm 側が水平になる (テスト印刷で確認)
+GB_W, GB_H, GB_L = 12.0, 10.0, 9.0
 CAN_D, CAN_L = 12.2, 22.0               # モータ+エンコーダ
 SHAFT_D, SHAFT_FLAT, SHAFT_L = 3.0, 2.5, 10.0
 GB_CLR = 0.3                            # ギアボックス ポケットの隙間
