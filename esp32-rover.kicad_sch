@@ -3053,7 +3053,7 @@
 			(uuid "e5034a28-8c10-4fc5-b7c1-a2c146e6bd2b")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "J5")
 					(unit 1)
@@ -3136,7 +3136,7 @@
 			(uuid "000928fc-d1ef-49c1-a084-7913daeadde5")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "J4")
 					(unit 1)
@@ -3214,7 +3214,7 @@
 			(uuid "52e0698c-3939-417e-b57a-3b6da43907ab")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR04")
 					(unit 1)
@@ -3292,7 +3292,7 @@
 			(uuid "a1588389-b7dd-46db-bff5-334f7d5a4d9b")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR06")
 					(unit 1)
@@ -3374,7 +3374,7 @@
 			(uuid "8a70e43e-dabe-4b2f-a413-c7459886fc29")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "C4")
 					(unit 1)
@@ -3452,7 +3452,7 @@
 			(uuid "b960ee5e-719c-451b-9b80-b1bfa995d3b6")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#FLG03")
 					(unit 1)
@@ -3530,7 +3530,7 @@
 			(uuid "fd8a5804-b3a1-41a3-b3be-7c5804e5f482")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR08")
 					(unit 1)
@@ -3608,7 +3608,7 @@
 			(uuid "d0c73955-b748-45c6-908b-56ebdb5aa9e5")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR09")
 					(unit 1)
@@ -3691,7 +3691,7 @@
 			(uuid "268d720f-27c6-47d3-a500-c7009e26e328")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "J3")
 					(unit 1)
@@ -3769,7 +3769,7 @@
 			(uuid "1fc957d9-e32b-496c-8947-5b69afe098ac")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR02")
 					(unit 1)
@@ -3849,7 +3849,7 @@
 			(uuid "12f22323-0e6c-45ab-a1c9-9d963b06a384")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "C1")
 					(unit 1)
@@ -4147,7 +4147,7 @@
 			(uuid "df02c581-3ef4-46b7-a797-1143dafff63f")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "U4")
 					(unit 1)
@@ -4225,7 +4225,7 @@
 			(uuid "9ecb860d-bcb6-43fa-aeba-04b226ad0bed")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR05")
 					(unit 1)
@@ -4308,7 +4308,7 @@
 			(uuid "2350d2fd-a503-4a6e-9baf-21ad506b579a")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "J2")
 					(unit 1)
@@ -4386,7 +4386,7 @@
 			(uuid "d7369135-1e28-4c69-b653-6aafe7ce9427")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#FLG01")
 					(unit 1)
@@ -4464,7 +4464,7 @@
 			(uuid "9ae63cac-582d-4af2-8b18-273679d65046")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR07")
 					(unit 1)
@@ -4546,7 +4546,7 @@
 			(uuid "a0472639-b30e-4e54-9784-668c01c05eb7")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "C3")
 					(unit 1)
@@ -4624,7 +4624,7 @@
 			(uuid "25f2f8ba-2508-4e8c-aaeb-f06341e0ec5b")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#FLG02")
 					(unit 1)
@@ -4746,7 +4746,7 @@
 			(uuid "0a58d401-f02e-40fe-901d-a522819aa0fc")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "U1")
 					(unit 1)
@@ -4824,7 +4824,7 @@
 			(uuid "dcc53782-bf27-4102-949c-1d69b574607f")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "#PWR03")
 					(unit 1)
@@ -4907,7 +4907,7 @@
 			(uuid "78f651e9-bdd2-47bc-95de-ae5afee8e139")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "J1")
 					(unit 1)
@@ -4987,7 +4987,7 @@
 			(uuid "0881949d-0062-4bb8-8869-4276444cd434")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "C2")
 					(unit 1)
@@ -5072,7 +5072,7 @@
 			(uuid "cbae31aa-03b0-4bda-b81b-d50ae713bea2")
 		)
 		(instances
-			(project "pico-rover"
+			(project "esp32-rover"
 				(path "/3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
 					(reference "U5")
 					(unit 1)

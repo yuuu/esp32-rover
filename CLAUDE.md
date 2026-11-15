@@ -1,10 +1,10 @@
-# rover — ESP32 + LiDAR SLAM ローバー
+# esp32-rover — ESP32 + LiDAR SLAM ローバー
 
 差動2輪のSLAMロボット。参考にした機体は Vstone ライトローバーE32 と Maker's Pet Mini。
 フレームは3Dプリントで作り、FreeCADのPythonスクリプトで生成している。
 
 ## ファイル構成
-- `pico-rover.kicad_pcb` / `.kicad_pro` — 制御基板（XIAO ESP32-S3、モータドライバ TC78H653FTG）。KiCad関連の操作は konnect skill の手順に従うこと
+- `esp32-rover.kicad_sch` / `.kicad_pcb` / `.kicad_pro` — 制御基板（XIAO ESP32-S3、モータドライバ TC78H653FTG）。KiCad関連の操作は konnect skill の手順に従うこと
 - `cad/rover_frame.py` — フレームの**唯一のソース**。`.FCStd` と STL はこのスクリプトから生成するので、直接編集しない
 - `cad/rover_frame.FCStd` — 組立モデル。`Printed` グループが印刷部品、`Reference` グループが部品のダミー形状
 - `cad/stl/` — 印刷用 STL（Base_Plate, Mid_Deck, Top_Deck, Wheel_Hub_x2）
@@ -40,7 +40,7 @@
 | モータ（秋月 130984） | MERCURY MG12A06E-060310-50 | ギアボックス 10×12×長9。缶Φ12.2×22（エンコーダ込み）。軸Φ3 Dカット（2.5）、長さ10。前面の M1.6 穴2個、ピッチ9。6V、1:50、エンコーダ 7PPR（減速後 350PPR）、ZH1.5 6ピン |
 | 電池ボックス（秋月 110611） | COMF BH-363-1B | 単3×6本、3本×2段の背中合わせ、直列で006P型スナップ。58（電池の軸方向）×45×28。スナップは端面から2.4突出。フタ・スイッチ・取付穴なし。出典: https://akizukidenshi.com/goodsaffix/bh-363-1b.pdf |
 | LiDAR（秋月 117302） | YDLIDAR X2 | 96×60.5×50.3。回転ヘッドΦ60.5。脚（スタンドオフ）は3本で、回転中心を基準に (-35.3, 0) と (+36, ±18)。脚の下端からモータ下面まで 2.5、レーザー中心まで 42.4。スキャンの 0° はモータ側の方向で、時計回りが正。コネクタは MX1.25-4P。5V、起動時のピーク電流 1A 以上。出典: https://www.marutsu.co.jp/contents/shop/marutsu/datasheet/YDLIDAR_X2.pdf |
-| 基板 | pico-rover | 60×60、M3穴 50mmピッチ（四隅から5mm内側） |
+| 基板 | esp32-rover | 60×60、M3穴 50mmピッチ（四隅から5mm内側） |
 
 ## 未確認事項・注意点
 - LiDAR は回転中心をロボット中心（車軸の真上）に合わせ、モータ側を前（+X）に向けている。こうするとスキャンの 0° が前方になる。脚は座面（Φ8・高さ2）の上に載せ、デッキの下からネジで留める。レーザー中心の高さは Z=125.0
@@ -53,3 +53,6 @@
 - **L7805 は発熱が大きい**（7.2V 入力・0.8A で約1.8W）。ピン配置が同じスイッチング式の DC-DC への置き換えを推奨している。LiDAR の起動電流は 1A 以上
 - 電源スイッチがない（電池ボックスにも基板にもない）。どこに付けるか未定
 - まだ印刷も実物合わせもしていないプロトタイプ
+- プロジェクト名を pico-rover から esp32-rover に変更した（konnect の rename_project を使用）。次の2か所は旧名のまま残っており、KiCad 上で直す必要がある
+  - PCB の各フットプリントが持つ `sheetfile "pico-rover.kicad_sch"`（12か所）。KiCad で「回路図から PCB を更新」(F8) を実行すれば新しい名前に更新される
+  - 回路図のタイトル欄の `title "pico-rover"`。ページ設定から変更する

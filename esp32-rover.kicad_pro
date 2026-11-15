@@ -488,7 +488,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "pico-rover.kicad_pro",
+    "filename": "esp32-rover.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -764,8 +764,8 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "pico-rover.kicad_sch",
-        "name": "pico-rover",
+        "filename": "esp32-rover.kicad_sch",
+        "name": "esp32-rover",
         "uuid": "3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3"
       }
     ],
@@ -775,7 +775,7 @@
   "sheets": [
     [
       "3b375ab4-1e92-4ccb-b8c4-9c1300f48cb3",
-      "pico-rover"
+      "esp32-rover"
     ]
   ],
   "text_variables": {},
