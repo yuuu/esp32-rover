@@ -17,14 +17,19 @@ from FreeCAD import Vector as V
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------- 部品寸法
-# タイヤ FS90R-W : Φ60 (ホイールΦ56) 幅8, ハブ穴2個 ピッチ1/2"
+# タイヤ FS90R-W : Φ60 (ホイールΦ56) 幅8
 WHEEL_D, WHEEL_W = 60.0, 8.0
-WHEEL_HOLE_PITCH = 12.7
+# ホイール (配布 STL の形状を寸法化したもの)。ハブと一体で印刷する
+WHEEL_RIM_D, WHEEL_RIM_IN_D = 50.0, 47.0     # リム外径 (両端), 内径
+WHEEL_BEAD_D, WHEEL_BEAD_W = 56.0, 4.0       # 幅中央のタイヤ受け
+WHEEL_BOSS_D, WHEEL_BORE_D = 20.0, 3.3       # 中央の円盤, 中心穴
+WHEEL_SPOKE_W, WHEEL_SPOKES = 6.0, 6
 # モータ MG12A06E-060310-50 (N20互換)
 # ギアボックス 幅(X) 高(Z) 長(Y)。エンコーダ基板が受け台に当たらない向きでは
 # 12mm 側が水平になる (テスト印刷で確認)
 GB_W, GB_H, GB_L = 12.0, 10.0, 9.0
 CAN_D, CAN_L = 12.2, 22.0               # モータ+エンコーダ
+CAN_H = 10.0                            # 缶は上下 (Z) が平らで高さ10 (ギアボックスの 10mm 側と同じ向き)
 SHAFT_D, SHAFT_FLAT, SHAFT_L = 3.0, 2.5, 10.0
 GB_CLR = 0.3                            # ギアボックス ポケットの隙間
 GB_POCKET_WALL = 2.0                    # ポケット側壁の厚み
@@ -115,11 +120,12 @@ def make_base():
                         s * (WALL_IN - gb_len / 2), z1))
         cuts.append(box(GB_W + GB_CLR, gb_len + 0.02, 20, 0,
                         s * (WALL_IN - gb_len / 2), AXLE_Z - GB_H / 2))
-        # 缶サドル (缶Φ12.2 +0.4)。前端面がギアボックス下側の角を受けて後退を止める
+        # 缶サドル (缶Φ12.2 +0.4、底は缶の平らな下面 +0.2)。前端面がギアボックス下側の角を受けて後退を止める
         y_c = s * (y_gb_rear - CAN_L / 2)
         adds.append(box(16, CAN_L, AXLE_Z - z1, 0, y_c, z1))
         cuts.append(cyl((CAN_D + 0.4) / 2, CAN_L + 2, 0,
-                        s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0)))
+                        s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0)).common(
+            box(CAN_D + 2, 2 * (CAN_L + 2), CAN_H + 0.4, 0, s * (WALL_IN - GB_L), AXLE_Z - CAN_H / 2 - 0.2)))
         # 結束バンド用スロット (3 x 1.8)
         for ty in (y_gb_rear - 6, y_gb_rear - 16):
             cuts.append(box(16 + 2, 3, 1.8, 0, s * ty, AXLE_Z - 9))
@@ -217,30 +223,32 @@ def make_top():
     return p.removeSplitter()
 
 
-# ================================================================ ホイールハブ (Dカット軸 → ホイール)
-def make_hub():
-    # 原点基準で作成 (Z+ がホイール側)
+# ================================================================ ホイール (ハブ一体, FS90R-W のホイール部)
+def make_wheel():
+    # 原点基準で作成 (Z+ が外側)。Z=0〜6 がハブ、Z=6〜14 がホイール
     disc_t, boss_l = 2.5, 3.5
+    z0 = boss_l + disc_t
     h = cyl(11, disc_t, 0, 0, boss_l).fuse(cyl(4.5, boss_l + disc_t))
-    # ホイール中心穴へのパイロット
-    h = h.fuse(cyl(2.3, 1.5, 0, 0, boss_l + disc_t))
-    # Dカット穴 (Φ3.15, フラット 2.6)
+    w = cyl(WHEEL_RIM_D / 2, WHEEL_W, 0, 0, z0).fuse(
+        cyl(WHEEL_BEAD_D / 2, WHEEL_BEAD_W, 0, 0, z0 + (WHEEL_W - WHEEL_BEAD_W) / 2))
+    win = cyl(WHEEL_RIM_IN_D / 2, WHEEL_W + 2, 0, 0, z0 - 1).cut(
+        cyl(WHEEL_BOSS_D / 2, WHEEL_W + 4, 0, 0, z0 - 2))
+    for k in range(WHEEL_SPOKES // 2):
+        bar = box(WHEEL_RIM_D, WHEEL_SPOKE_W, WHEEL_W + 4, 0, 0, z0 - 2)
+        bar.rotate(V(0, 0, 0), V(0, 0, 1), 30 + k * 360 / WHEEL_SPOKES)
+        win = win.cut(bar)
+    w = h.fuse(w.cut(win))
+    # Dカット穴 (Φ3.15, フラット 2.6) を全長に通す
     bore = cyl(1.575, 20, 0, 0, -1).common(box(10, 10, 20, 0, -5 + (2.6 - 1.575), -1))
-    h = h.cut(bore)
-    # ホイール固定ネジ穴 (M2 タッピング Φ1.7) ピッチ 12.7
-    for x in (WHEEL_HOLE_PITCH / 2, -WHEEL_HOLE_PITCH / 2):
-        h = h.cut(cyl(0.85, 10, x, 0, -1))
+    w = w.cut(bore)
     # イモネジ用 (M2, 側面)
-    h = h.cut(cyl(0.85, 6, 0, 0, boss_l / 2, V(0, 1, 0)))
-    return h.removeSplitter()
+    w = w.cut(cyl(0.85, 6, 0, 0, boss_l / 2, V(0, 1, 0)))
+    return w.removeSplitter()
 
 
-def place_hub(hub, s):
-    sh = hub.copy()
-    if s > 0:
-        sh.rotate(V(0, 0, 0), V(1, 0, 0), -90)   # Z+ → Y+
-    else:
-        sh.rotate(V(0, 0, 0), V(1, 0, 0), 90)    # Z+ → Y-
+def place_wheel(wheel, s):
+    sh = wheel.copy()
+    sh.rotate(V(0, 0, 0), V(1, 0, 0), -90 * s)   # Z+ → 外側 (s*Y)
     sh.translate(V(0, s * (WALL_IN + WALL_T + 0.5), AXLE_Z))
     return sh
 
@@ -249,11 +257,9 @@ def place_hub(hub, s):
 def ref_parts():
     refs = {}
     for s, n in ((1, "L"), (-1, "R")):
-        w = cyl(WHEEL_D / 2, WHEEL_W, 0, s * (WHEEL_Y - WHEEL_W / 2), AXLE_Z, V(0, s, 0))
-        w = w.cut(cyl(WHEEL_D / 2 - 6, WHEEL_W + 2, 0, s * (WHEEL_Y - WHEEL_W / 2 - 1), AXLE_Z, V(0, s, 0)))
-        refs["Wheel_" + n] = w
         gb = box(GB_W, GB_L, GB_H, 0, s * (WALL_IN - GB_L / 2), AXLE_Z - GB_H / 2)
-        can = cyl(CAN_D / 2, CAN_L, 0, s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0))
+        can = cyl(CAN_D / 2, CAN_L, 0, s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0)).common(
+            box(CAN_D, 2 * CAN_L, CAN_H, 0, s * (WALL_IN - GB_L), AXLE_Z - CAN_H / 2))
         sha = cyl(SHAFT_D / 2, SHAFT_L + 0.7, 0, s * WALL_IN, AXLE_Z, V(0, s, 0))
         refs["Motor_" + n] = gb.fuse([can, sha])
     pcb_z = MID_Z + PLATE_T + PCB_STANDOFF
@@ -283,10 +289,10 @@ def main():
         "Mid_Deck": make_mid(),
         "Top_Deck": make_top(),
     }
-    hub = make_hub()
+    wheel = make_wheel()
     printed_assy = dict(printed)
-    printed_assy["Hub_L"] = place_hub(hub, 1)
-    printed_assy["Hub_R"] = place_hub(hub, -1)
+    printed_assy["Wheel_L"] = place_wheel(wheel, 1)
+    printed_assy["Wheel_R"] = place_wheel(wheel, -1)
 
     grp_p = doc.addObject("App::DocumentObjectGroup", "Printed")
     grp_r = doc.addObject("App::DocumentObjectGroup", "Reference")
@@ -319,7 +325,11 @@ def main():
         s = shp.copy()
         s.translate(V(0, 0, -s.BoundBox.ZMin))
         Mesh.Mesh(s.tessellate(0.05)).write(os.path.join(stl_dir, name + ".stl"))
-    Mesh.Mesh(hub.tessellate(0.02)).write(os.path.join(stl_dir, "Wheel_Hub_x2.stl"))
+    # ホイール: 外側の面を下にする
+    w = wheel.copy()
+    w.rotate(V(0, 0, 0), V(1, 0, 0), 180)
+    w.translate(V(0, 0, -w.BoundBox.ZMin))
+    Mesh.Mesh(w.tessellate(0.02)).write(os.path.join(stl_dir, "Wheel_x2.stl"))
 
     # レポート
     for name, shp in list(printed_assy.items()):
