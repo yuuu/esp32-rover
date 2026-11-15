@@ -29,7 +29,7 @@ SHAFT_D, SHAFT_FLAT, SHAFT_L = 3.0, 2.5, 10.0
 GB_CLR = 0.3                            # ギアボックス ポケットの隙間
 GB_POCKET_WALL = 2.0                    # ポケット側壁の厚み
 GB_POCKET_TOP = 33.0                    # ポケット側壁の上端 Z (ギアボックス上面は36)
-# PCB esp32-rover : 60x60, M3穴 50mmピッチ
+# PCB kicad/main (メイン基板) : 60x60, M3穴 50mmピッチ
 PCB_SIZE, PCB_HOLE_PITCH, PCB_T = 60.0, 50.0, 1.6
 # 電池ボックス BH-363-1B (単3x6 背中合わせ, 006P型スナップ, フタ・スイッチなし)
 BAT_L, BAT_W, BAT_H = 58.0, 45.0, 28.0   # L=電池の軸方向 (Y), W=X, H=2段

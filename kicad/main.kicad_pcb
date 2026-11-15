@@ -7,6 +7,9 @@
 		(legacy_teardrops no)
 	)
 	(paper "A4")
+	(title_block
+		(title "ESP32 ROVER")
+	)
 	(layers
 		(0 "F.Cu" signal)
 		(2 "B.Cu" signal)
@@ -34,6 +37,45 @@
 		(45 "User.4" user)
 	)
 	(setup
+		(stackup
+			(layer "F.SilkS"
+				(type "Top Silk Screen")
+			)
+			(layer "F.Paste"
+				(type "Top Solder Paste")
+			)
+			(layer "F.Mask"
+				(type "Top Solder Mask")
+				(thickness 0.01)
+			)
+			(layer "F.Cu"
+				(type "copper")
+				(thickness 0.035)
+			)
+			(layer "dielectric 1"
+				(type "core")
+				(thickness 1.51)
+				(material "FR4")
+				(epsilon_r 4.5)
+				(loss_tangent 0.02)
+			)
+			(layer "B.Cu"
+				(type "copper")
+				(thickness 0.035)
+			)
+			(layer "B.Mask"
+				(type "Bottom Solder Mask")
+				(thickness 0.01)
+			)
+			(layer "B.Paste"
+				(type "Bottom Solder Paste")
+			)
+			(layer "B.SilkS"
+				(type "Bottom Silk Screen")
+			)
+			(copper_finish "None")
+			(dielectric_constraints no)
+		)
 		(pad_to_mask_clearance 0)
 		(allow_soldermask_bridges_in_footprints no)
 		(tenting
@@ -152,7 +194,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/5eab8629-b5d2-4018-9398-56e11c6b7b4c")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -740,7 +782,7 @@
 		)
 		(path "/d58a93c9-6104-4e09-95f9-572442a9c0b2")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1025,7 +1067,7 @@
 		(property ki_fp_filters "TO?252* TO?263* TO?220*")
 		(path "/f76879ff-457f-47bb-84f1-5b8e567b1f20")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1279,7 +1321,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/98e1fa6d-5deb-4fa3-aba6-8405c4021948")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1680,7 +1722,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/26e15548-b1ef-4b5a-b1da-c867ffd6c8e0")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2217,7 +2259,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/bf59424a-b351-44d3-a086-f680fd62ea60")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2504,7 +2546,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/0dd34d59-f086-4403-9eee-afd6a168f781")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2892,7 +2934,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/3efa7f92-cca4-4812-bd19-3c4b3b464f02")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4634,7 +4676,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/72690896-8c49-4189-902c-7656ef404a9b")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4814,7 +4856,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/0d0d56bf-1412-4f60-939a-d58d14d1e8e7")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5055,7 +5097,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f1593be1-449b-4ffb-8cac-c6e34399a055")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5415,7 +5457,7 @@
 		)
 		(path "/82453f1a-a84f-477b-9ee2-85671ee298f2")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5851,7 +5893,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/e2a6eef8-0d36-4bfd-b345-1723082fc5cf")
 		(sheetname "/")
-		(sheetfile "esp32-rover.kicad_sch")
+		(sheetfile "main.kicad_sch")
 		(units
 			(unit
 				(name "A")
