@@ -4,7 +4,7 @@
 フレームは3Dプリントで作り、FreeCADのPythonスクリプトで生成している。
 
 ## ファイル構成
-- `esp32-rover.kicad_sch` / `.kicad_pcb` / `.kicad_pro` — 制御基板（XIAO ESP32-S3、モータドライバ TC78H653FTG）。KiCad関連の操作は konnect skill の手順に従うこと
+- `kicad/esp32-rover.kicad_sch` / `.kicad_pcb` / `.kicad_pro` — 制御基板（XIAO ESP32-S3、モータドライバ TC78H653FTG）。KiCad関連の操作は konnect skill の手順に従うこと
 - `cad/rover_frame.py` — フレームの**唯一のソース**。`.FCStd` と STL はこのスクリプトから生成するので、直接編集しない
 - `cad/rover_frame.FCStd` — 組立モデル。`Printed` グループが印刷部品、`Reference` グループが部品のダミー形状
 - `cad/stl/` — 印刷用 STL（Base_Plate, Mid_Deck, Top_Deck, Wheel_Hub_x2）
