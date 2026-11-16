@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import frame as rf  # noqa: E402
 
 OUT_DIR = os.path.join(rf.OUT_DIR, "stl", "test")
+BORE_TEST_CLRS = (0.35, 0.4, 0.45, 0.5)   # TestFit_Bore の隙間 (径・D面とも)
 
 
 def crop(shape, lx, ly, cx, cy, z0, z1):
@@ -43,9 +44,25 @@ def main():
     lidar = lidar.cut(rf.box(2 * 29, 2 * 18, 20, 0, 0, rf.TOP_Z - 5))
     lidar = lidar.removeSplitter()
 
+    # 3) Dカット穴: 隙間違いのボスを並べる。印刷向きはホイールと同じ (穴が垂直)。
+    #    ボス手前の点の数 = BORE_TEST_CLRS の何番目か (1 個 = 0.35)
+    pitch, boss_h, base_t = 14.0, rf.HUB_L + rf.WHEEL_W, 1.5
+    n = len(BORE_TEST_CLRS)
+    bore = rf.box(pitch * n, pitch, base_t, pitch * (n - 1) / 2, 0, 0)
+    for i, clr in enumerate(BORE_TEST_CLRS):
+        x = i * pitch
+        bore = bore.fuse(rf.cyl(rf.HUB_D / 2, boss_h, x, 0, 0))
+        for k in range(i + 1):
+            bore = bore.fuse(rf.cyl(0.6, 0.6, x - 1.5 * i + 3 * k, -5.5, base_t))
+        h = rf.d_bore(clr, boss_h + 2, -1)
+        h.translate(rf.V(x, 0, 0))
+        bore = bore.cut(h)
+    bore = bore.removeSplitter()
+
     os.makedirs(OUT_DIR, exist_ok=True)
     for name, shp in (("TestFit_Motor", motor),
-                      ("TestFit_LiDAR", lidar)):
+                      ("TestFit_LiDAR", lidar),
+                      ("TestFit_Bore", bore)):
         s = shp.copy()
         bb = s.BoundBox
         s.translate(rf.V(-(bb.XMin + bb.XMax) / 2, -(bb.YMin + bb.YMax) / 2, -bb.ZMin))

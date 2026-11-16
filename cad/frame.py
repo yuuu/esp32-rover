@@ -25,7 +25,7 @@ WHEEL_BEAD_D, WHEEL_BEAD_W = 56.0, 4.0       # 幅中央のタイヤ受け
 WHEEL_BOSS_D, WHEEL_BORE_D = 20.0, 3.3       # 中央の円盤, 中心穴
 WHEEL_SPOKE_W, WHEEL_SPOKES = 6.0, 6
 HUB_D, HUB_L = 9.0, 3.0                      # ホイール内側のボス
-BORE_CLR = 0.3          # Dカット穴の隙間 (径・D面とも)。0.15/0.1 では軸が入らなかった
+BORE_CLR = 0.33         # Dカット穴の隙間 (径・D面とも)。TestFit_Bore で 0.3 はきつく、0.35 はちょうど良い
 GB_BOSS_D, GB_BOSS_L = 4.0, 1.0              # ギアボックス前面の軸受けの出っ張り (長さは推定)
 # モータ MG12A06E-060310-50 (N20互換)
 # ギアボックス 幅(X) 高(Z) 長(Y)。エンコーダ基板が受け台に当たらない向きでは
@@ -221,6 +221,13 @@ def make_top():
     return p.removeSplitter()
 
 
+def d_bore(clr, h, z0):
+    # Dカット軸 (Φ3・D面2.5) 用の穴。径・D面とも clr を足す。D面は +Y 側
+    br = (SHAFT_D + clr) / 2
+    flat = SHAFT_FLAT + clr
+    return cyl(br, h, 0, 0, z0).common(box(10, 10, h, 0, -5 + (flat - br), z0))
+
+
 # ================================================================ ホイール (ハブ一体, FS90R-W のホイール部)
 def make_wheel():
     # 原点基準で作成 (Z+ が外側)。Z=0〜HUB_L がハブ、その外側がホイール
@@ -235,11 +242,8 @@ def make_wheel():
         bar.rotate(V(0, 0, 0), V(0, 0, 1), 30 + k * 360 / WHEEL_SPOKES)
         win = win.cut(bar)
     w = h.fuse(w.cut(win))
-    # Dカット穴 (軸Φ3・D面2.5 に BORE_CLR を足す) を全長に通す
-    br = (SHAFT_D + BORE_CLR) / 2
-    flat = SHAFT_FLAT + BORE_CLR
-    bore = cyl(br, 20, 0, 0, -1).common(box(10, 10, 20, 0, -5 + (flat - br), -1))
-    w = w.cut(bore)
+    # Dカット穴を全長に通す
+    w = w.cut(d_bore(BORE_CLR, 20, -1))
     # ギアボックスの軸受けの出っ張りの逃げ (先端との隙間 0.5)
     w = w.cut(cyl(GB_BOSS_D / 2 + 0.5, GB_BOSS_L - WHEEL_GAP + 0.5 + 1, 0, 0, -1))
     return w.removeSplitter()
