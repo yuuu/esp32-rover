@@ -24,6 +24,9 @@ WHEEL_RIM_D, WHEEL_RIM_IN_D = 50.0, 47.0     # リム外径 (両端), 内径
 WHEEL_BEAD_D, WHEEL_BEAD_W = 56.0, 4.0       # 幅中央のタイヤ受け
 WHEEL_BOSS_D, WHEEL_BORE_D = 20.0, 3.3       # 中央の円盤, 中心穴
 WHEEL_SPOKE_W, WHEEL_SPOKES = 6.0, 6
+HUB_D, HUB_L = 9.0, 3.0                      # ホイール内側のボス
+BORE_CLR = 0.3          # Dカット穴の隙間 (径・D面とも)。0.15/0.1 では軸が入らなかった
+GB_BOSS_D, GB_BOSS_L = 4.0, 1.0              # ギアボックス前面の軸受けの出っ張り (長さは推定)
 # モータ MG12A06E-060310-50 (N20互換)
 # ギアボックス 幅(X) 高(Z) 長(Y)。エンコーダ基板が受け台に当たらない向きでは
 # 12mm 側が水平になる (テスト印刷で確認)
@@ -54,9 +57,9 @@ BODY_D = 130.0          # 円形デッキ径
 PLATE_T = 3.0
 BASE_Z = 10.0           # ベース下面の地上高
 AXLE_Z = WHEEL_D / 2    # 車軸高さ 30
-WHEEL_Y = 52.0          # 車輪中心面の Y
-WALL_T = 3.0            # モータ取付壁の厚み
-WALL_IN = 38.5          # 壁の内面 Y (=ギアボックス前面)
+GB_FRONT = 38.5         # ギアボックス前面の Y (軸はここから約9mm 出る)
+WHEEL_GAP = 0.5         # ギアボックス前面とハブの隙間
+WHEEL_Y = GB_FRONT + WHEEL_GAP + HUB_L + WHEEL_W / 2   # 車輪中心面の Y (=46)
 MID_Z = 43.0            # 中段デッキ下面 (電池上面 41 + 隙間2)
 PCB_STANDOFF = 5.0
 PCB_CLEAR = 25.0        # PCB上の部品クリアランス
@@ -108,30 +111,25 @@ def make_base():
 
     # --- モータ取付 (左右対称)
     for s in (1, -1):
-        # 取付壁 (ギアボックス前面をネジ止め)
-        # モータは上から落とし込む: 壁のU溝にシャフト、ポケットにギアボックス
-        y_wall = s * (WALL_IN + WALL_T / 2)
-        adds.append(box(18, WALL_T, AXLE_Z + 9 - z1, 0, y_wall, z1))
+        # モータは上から落とし込む: ポケットにギアボックス、サドルに缶。
+        # 軸側の壁は無い (軸をホイールに長く差し込むため)
         gb_len = GB_L + GB_CLR                  # ポケット長 (Y)
-        y_gb_rear = WALL_IN - gb_len            # ギアボックス後端 = 缶サドル前端
+        y_gb_rear = GB_FRONT - gb_len            # ギアボックス後端 = 缶サドル前端
         # ギアボックス ポケット (上面開放, 側壁 GB_POCKET_WALL)
         pw = GB_W + GB_CLR + 2 * GB_POCKET_WALL
         adds.append(box(pw, gb_len, GB_POCKET_TOP - z1, 0,
-                        s * (WALL_IN - gb_len / 2), z1))
+                        s * (GB_FRONT - gb_len / 2), z1))
         cuts.append(box(GB_W + GB_CLR, gb_len + 0.02, 20, 0,
-                        s * (WALL_IN - gb_len / 2), AXLE_Z - GB_H / 2))
+                        s * (GB_FRONT - gb_len / 2), AXLE_Z - GB_H / 2))
         # 缶サドル (缶Φ12.2 +0.4、底は缶の平らな下面 +0.2)。前端面がギアボックス下側の角を受けて後退を止める
         y_c = s * (y_gb_rear - CAN_L / 2)
         adds.append(box(16, CAN_L, AXLE_Z - z1, 0, y_c, z1))
         cuts.append(cyl((CAN_D + 0.4) / 2, CAN_L + 2, 0,
-                        s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0)).common(
-            box(CAN_D + 2, 2 * (CAN_L + 2), CAN_H + 0.4, 0, s * (WALL_IN - GB_L), AXLE_Z - CAN_H / 2 - 0.2)))
+                        s * (GB_FRONT - GB_L), AXLE_Z, V(0, -s, 0)).common(
+            box(CAN_D + 2, 2 * (CAN_L + 2), CAN_H + 0.4, 0, s * (GB_FRONT - GB_L), AXLE_Z - CAN_H / 2 - 0.2)))
         # 結束バンド用スロット (3 x 1.8)
         for ty in (y_gb_rear - 6, y_gb_rear - 16):
             cuts.append(box(16 + 2, 3, 1.8, 0, s * ty, AXLE_Z - 9))
-        # シャフト用U溝 (Φ4ボス用 幅4.6, 上面開放)
-        cuts.append(cyl(2.3, WALL_T + 2, 0, s * (WALL_IN - 1), AXLE_Z, V(0, s, 0)))
-        cuts.append(box(4.6, WALL_T + 2, 20, 0, y_wall, AXLE_Z))
         # 車輪逃げ (プレート貫通)
         cuts.append(box(56, WHEEL_W + 5, PLATE_T + 2, 0, s * WHEEL_Y, z0 - 1))
 
@@ -225,10 +223,9 @@ def make_top():
 
 # ================================================================ ホイール (ハブ一体, FS90R-W のホイール部)
 def make_wheel():
-    # 原点基準で作成 (Z+ が外側)。Z=0〜6 がハブ、Z=6〜14 がホイール
-    disc_t, boss_l = 2.5, 3.5
-    z0 = boss_l + disc_t
-    h = cyl(11, disc_t, 0, 0, boss_l).fuse(cyl(4.5, boss_l + disc_t))
+    # 原点基準で作成 (Z+ が外側)。Z=0〜HUB_L がハブ、その外側がホイール
+    z0 = HUB_L
+    h = cyl(HUB_D / 2, HUB_L)
     w = cyl(WHEEL_RIM_D / 2, WHEEL_W, 0, 0, z0).fuse(
         cyl(WHEEL_BEAD_D / 2, WHEEL_BEAD_W, 0, 0, z0 + (WHEEL_W - WHEEL_BEAD_W) / 2))
     win = cyl(WHEEL_RIM_IN_D / 2, WHEEL_W + 2, 0, 0, z0 - 1).cut(
@@ -238,18 +235,20 @@ def make_wheel():
         bar.rotate(V(0, 0, 0), V(0, 0, 1), 30 + k * 360 / WHEEL_SPOKES)
         win = win.cut(bar)
     w = h.fuse(w.cut(win))
-    # Dカット穴 (Φ3.15, フラット 2.6) を全長に通す
-    bore = cyl(1.575, 20, 0, 0, -1).common(box(10, 10, 20, 0, -5 + (2.6 - 1.575), -1))
+    # Dカット穴 (軸Φ3・D面2.5 に BORE_CLR を足す) を全長に通す
+    br = (SHAFT_D + BORE_CLR) / 2
+    flat = SHAFT_FLAT + BORE_CLR
+    bore = cyl(br, 20, 0, 0, -1).common(box(10, 10, 20, 0, -5 + (flat - br), -1))
     w = w.cut(bore)
-    # イモネジ用 (M2, 側面)
-    w = w.cut(cyl(0.85, 6, 0, 0, boss_l / 2, V(0, 1, 0)))
+    # ギアボックスの軸受けの出っ張りの逃げ (先端との隙間 0.5)
+    w = w.cut(cyl(GB_BOSS_D / 2 + 0.5, GB_BOSS_L - WHEEL_GAP + 0.5 + 1, 0, 0, -1))
     return w.removeSplitter()
 
 
 def place_wheel(wheel, s):
     sh = wheel.copy()
     sh.rotate(V(0, 0, 0), V(1, 0, 0), -90 * s)   # Z+ → 外側 (s*Y)
-    sh.translate(V(0, s * (WALL_IN + WALL_T + 0.5), AXLE_Z))
+    sh.translate(V(0, s * (GB_FRONT + WHEEL_GAP), AXLE_Z))
     return sh
 
 
@@ -257,10 +256,10 @@ def place_wheel(wheel, s):
 def ref_parts():
     refs = {}
     for s, n in ((1, "L"), (-1, "R")):
-        gb = box(GB_W, GB_L, GB_H, 0, s * (WALL_IN - GB_L / 2), AXLE_Z - GB_H / 2)
-        can = cyl(CAN_D / 2, CAN_L, 0, s * (WALL_IN - GB_L), AXLE_Z, V(0, -s, 0)).common(
-            box(CAN_D, 2 * CAN_L, CAN_H, 0, s * (WALL_IN - GB_L), AXLE_Z - CAN_H / 2))
-        sha = cyl(SHAFT_D / 2, SHAFT_L + 0.7, 0, s * WALL_IN, AXLE_Z, V(0, s, 0))
+        gb = box(GB_W, GB_L, GB_H, 0, s * (GB_FRONT - GB_L / 2), AXLE_Z - GB_H / 2)
+        can = cyl(CAN_D / 2, CAN_L, 0, s * (GB_FRONT - GB_L), AXLE_Z, V(0, -s, 0)).common(
+            box(CAN_D, 2 * CAN_L, CAN_H, 0, s * (GB_FRONT - GB_L), AXLE_Z - CAN_H / 2))
+        sha = cyl(SHAFT_D / 2, SHAFT_L + 0.7, 0, s * GB_FRONT, AXLE_Z, V(0, s, 0))
         refs["Motor_" + n] = gb.fuse([can, sha])
     pcb_z = MID_Z + PLATE_T + PCB_STANDOFF
     refs["PCB"] = box(PCB_SIZE, PCB_SIZE, PCB_T, 0, 0, pcb_z)

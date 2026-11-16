@@ -28,8 +28,8 @@ def main():
     z_base = rf.BASE_Z
 
     # 1) モータ取付部 (左側1個): 取付壁 + サドル + 底板
-    y0 = rf.WALL_IN - rf.GB_L - rf.CAN_L - 2
-    y1 = rf.WALL_IN + rf.WALL_T + 1
+    y0 = rf.GB_FRONT - rf.GB_L - rf.CAN_L - 2
+    y1 = rf.GB_FRONT + 1
     motor = crop(base, 24, y1 - y0, 0, (y0 + y1) / 2, z_base, rf.AXLE_Z + 10)
 
     # 2) LiDAR 座: 脚3本の座面 + 穴を含む枠 (中央を肉抜きして時間短縮)
