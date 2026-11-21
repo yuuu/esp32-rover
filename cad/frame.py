@@ -40,7 +40,7 @@ GB_POCKET_TOP = 33.0                    # ポケット側壁の上端 Z (ギア�
 # PCB kicad/main (メイン基板) : 60x60, M3穴 50mmピッチ
 PCB_SIZE, PCB_HOLE_PITCH, PCB_T = 60.0, 50.0, 1.6
 # 電池ボックス BH-363-1B (単3x6 背中合わせ, 006P型スナップ, フタ・スイッチなし)
-BAT_L, BAT_W, BAT_H = 58.0, 45.0, 28.0   # L=電池の軸方向 (Y), W=X, H=2段
+BAT_L, BAT_W, BAT_H = 58.0, 45.0, 29.0   # L=電池の軸方向 (Y), W=X, H=2段 (高さは実測。データシートは28)
 BAT_SNAP = 2.4                           # スナップの突出 (+Y 端面)
 # LiDAR YDLIDAR X2 : 96 x 60.5 x 50.3 (データシート FIG1/FIG2, Marutsu版 YDLIDAR_X2.pdf)
 # 回転中心を原点に置き、モータ側を +X (前方) に向ける -> スキャン 0° が前方
@@ -60,13 +60,27 @@ AXLE_Z = WHEEL_D / 2    # 車軸高さ 30
 GB_FRONT = 38.5         # ギアボックス前面の Y (軸はここから約9mm 出る)
 WHEEL_GAP = 0.5         # ギアボックス前面とハブの隙間
 WHEEL_Y = GB_FRONT + WHEEL_GAP + HUB_L + WHEEL_W / 2   # 車輪中心面の Y (=46)
-MID_Z = 43.0            # 中段デッキ下面 (電池上面 41 + 隙間2)
+# 電池は中段を付けたまま後ろへ抜く。後ろの壁を越えられるよう、中段の下面は
+# 電池の上面 + 後ろの壁の高さ + 持ち上げの余裕 にする
+BAT_REAR_WALL_H = 3.0   # 後ろの壁の高さ (電池が滑り落ちない程度)
+BAT_LIFT_CLR = 1.0
+MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR   # 中段デッキ下面 (=46)
 PCB_STANDOFF = 5.0
 PCB_CLEAR = 25.0        # PCB上の部品クリアランス
 TOP_Z = MID_Z + PLATE_T + PCB_STANDOFF + PCB_T + PCB_CLEAR   # 上段デッキ下面
 BALL_D = 12.7           # キャスター用 1/2" 鋼球
 CASTER_X = 45.0
-POST_D = 8.0
+# キャスターは別部品のホルダーで鋼球を抱え、ベースの下から当てて皿ネジ (M3) で上から留める。
+# ベースの底面を平らにしてサポートを不要にするため
+CASTER_Z0 = 4.0         # ホルダー下面 (地上高)
+CASTER_R = 13.0         # ホルダー半径
+CASTER_SCREW_Y = 9.5    # ホルダー固定ネジの位置 (±Y)
+CASTER_SEAT_D = 9.0     # ベースの穴。鋼球はこの穴の縁 (Z≈11) で荷重を受ける
+BALL_CLR = 0.2          # ホルダー内の鋼球の隙間 (半径)
+M3_CSK_D = 6.4          # M3 皿ネジ頭の座ぐり径 (頭Φ6、90°)
+POST_D = 8.0            # 中段→上段の支柱
+BASE_POST_D = 8.0       # ベース→中段の支柱
+POST_FLARE = 3.0        # 支柱の根元の円すい状の補強 (半径方向・高さとも)
 SELF_TAP_M3 = 2.6       # M3 タッピング下穴
 M3_CLR = 3.4
 BASE_POSTS = [(sx * 40.0, sy * 42.0) for sx in (1, -1) for sy in (1, -1)]
@@ -76,7 +90,7 @@ BAT_X_FRONT = -10.5     # 電池前面 X
 BAT_Y0 = -32.2          # 電池の -Y 端面 (スナップは +Y 側)
 BAT_CLR = 0.5
 TRAY_WALL = 1.5
-TRAY_H = 8.0
+TRAY_H = 8.0            # -Y 端の壁の高さ
 
 
 def box(lx, ly, lz, cx=0, cy=0, z0=0):
@@ -96,11 +110,20 @@ def rounded_slot(length, width, h, cx, cy, z0, along_x=True):
     else:
         sh = box(width, length - width, h, cx, cy, z0)
         sh = sh.fuse([cyl(r, h, cx, cy - s, z0), cyl(r, h, cx, cy + s, z0)])
-    return sh
+    return sh.removeSplitter()
 
 
 def disk(z0):
     return cyl(BODY_D / 2, PLATE_T, 0, 0, z0)
+
+
+def flared_post(d, h, x, y, z1):
+    # 根元を円すいで太らせた支柱 (折れにくくする)。
+    # 補強が外周 (R65) に届く場合は、外周より 1mm 内側で切り取る
+    r = d / 2
+    flare = Part.makeCone(r + POST_FLARE, r, POST_FLARE, V(x, y, z1 - 0.01)).common(
+        cyl(BODY_D / 2 - 1, POST_FLARE + 1, 0, 0, z1 - 0.5))
+    return cyl(r, h, x, y, z1).fuse(flare)
 
 
 # ================================================================ ベースプレート
@@ -138,8 +161,8 @@ def make_base():
     bx0 = bx1 - BAT_W
     bcx = (bx0 + bx1) / 2
     by0, by1 = BAT_Y0, BAT_Y0 + BAT_L
-    # 後ろ壁
-    adds.append(box(TRAY_WALL, 50, TRAY_H,
+    # 後ろ壁 (低い。電池は中段を付けたまま、持ち上げて後ろへ抜く)
+    adds.append(box(TRAY_WALL, 50, BAT_REAR_WALL_H,
                     bx0 - BAT_CLR - TRAY_WALL / 2, (by0 + by1) / 2, z1))
     # -Y 端の壁 (両端のみ。中央はバンドを通す)
     wy = by0 - BAT_CLR - TRAY_WALL / 2
@@ -148,22 +171,24 @@ def make_base():
     # 前ストッパ (左右のモータ受けの間)
     adds.append(box(1.5, 8, 6, bx1 + BAT_CLR + 0.75, 0, z1))
     # 面ファスナーバンド用スロット (Y方向に電池を巻く)。+Y 側はスナップの先
-    for sy in (by0 - BAT_CLR - TRAY_WALL - 1.5, by1 + BAT_SNAP + 1.5):
+    # -Y 側は支柱に当たらないよう端の壁の真下まで寄せる
+    for sy in (by0 - BAT_CLR - TRAY_WALL - 0.5, by1 + BAT_SNAP + 1.5):
         cuts.append(rounded_slot(20, 3, PLATE_T + 2, bcx, sy, z0 - 1))
 
     # --- 支柱 (ベース→中段)
     for (x, y) in BASE_POSTS:
-        adds.append(cyl(POST_D / 2, MID_Z - z1, x, y, z1))
+        adds.append(flared_post(BASE_POST_D, MID_Z - z1, x, y, z1))
         cuts.append(cyl(SELF_TAP_M3 / 2, 12, x, y, MID_Z - 11))
 
-    # --- キャスター (前後, 1/2"鋼球スナップ式)
+    # --- キャスター: 鋼球の座 + ホルダー固定用の皿ネジ穴 (底面は平ら)
     for cx in (CASTER_X, -CASTER_X):
-        ball_c = V(cx, 0, BALL_D / 2)
-        adds.append(cyl(10, z0 - 4.0 + 0.01, cx, 0, 4.0))
-        cuts.append(Part.makeSphere(BALL_D / 2 + 0.2, ball_c))
-        cuts.append(cyl(BALL_D / 2 + 0.2, 6, cx, 0, BALL_D / 2))  # 上方向の抜き
-        # 割り (スナップ用スリット)
-        cuts.append(box(1.2, 22, 4.5, cx, 0, 3.9))
+        cuts.append(Part.makeSphere(BALL_D / 2, V(cx, 0, BALL_D / 2)))
+        cuts.append(cyl(CASTER_SEAT_D / 2, PLATE_T + 2, cx, 0, z0 - 1))
+        for sy in (1, -1):
+            cuts.append(cyl(M3_CLR / 2, PLATE_T + 2, cx, sy * CASTER_SCREW_Y, z0 - 1))
+            hd = (M3_CSK_D - M3_CLR) / 2
+            cuts.append(Part.makeCone(M3_CLR / 2, M3_CSK_D / 2 + 0.5, hd + 0.5,
+                                      V(cx, sy * CASTER_SCREW_Y, z1 - hd)))
 
     # --- 配線穴 / 軽量化
     cuts.append(rounded_slot(24, 10, PLATE_T + 2, 22, 0, z0 - 1))
@@ -171,6 +196,19 @@ def make_base():
     p = p.fuse(adds)
     p = p.cut(cuts)
     return p.removeSplitter()
+
+
+# ================================================================ キャスターホルダー (別部品)
+def make_caster(cx):
+    # ベースの下面に当てる円盤。鋼球は上から入れ、下側の縁 (赤道より下) で抜け止めする
+    z1 = BASE_Z
+    h = cyl(CASTER_R, z1 - CASTER_Z0, cx, 0, CASTER_Z0)
+    rb = BALL_D / 2 + BALL_CLR
+    cuts = [Part.makeSphere(rb, V(cx, 0, BALL_D / 2)),
+            cyl(rb, z1 - BALL_D / 2 + 1, cx, 0, BALL_D / 2)]
+    for sy in (1, -1):
+        cuts.append(cyl(SELF_TAP_M3 / 2, z1 - CASTER_Z0 + 2, cx, sy * CASTER_SCREW_Y, CASTER_Z0 - 1))
+    return h.cut(cuts).removeSplitter()
 
 
 # ================================================================ 中段デッキ (PCB)
@@ -192,7 +230,7 @@ def make_mid():
             cuts.append(cyl(SELF_TAP_M3 / 2, PCB_STANDOFF + PLATE_T + 2, x, y, z0 - 1))
     # 上段への支柱
     for (x, y) in MID_POSTS:
-        adds.append(cyl(POST_D / 2, TOP_Z - z1, x, y, z1))
+        adds.append(flared_post(POST_D, TOP_Z - z1, x, y, z1))
         cuts.append(cyl(SELF_TAP_M3 / 2, 12, x, y, TOP_Z - 11))
     # 配線穴 (モータ線 左右 / 電池線 後方 / 中央)
     for s in (1, -1):
@@ -296,6 +334,8 @@ def main():
     printed_assy = dict(printed)
     printed_assy["Wheel_L"] = place_wheel(wheel, 1)
     printed_assy["Wheel_R"] = place_wheel(wheel, -1)
+    printed_assy["Caster_F"] = make_caster(CASTER_X)
+    printed_assy["Caster_B"] = make_caster(-CASTER_X)
 
     grp_p = doc.addObject("App::DocumentObjectGroup", "Printed")
     grp_r = doc.addObject("App::DocumentObjectGroup", "Reference")
@@ -333,6 +373,10 @@ def main():
     w.rotate(V(0, 0, 0), V(1, 0, 0), 180)
     w.translate(V(0, 0, -w.BoundBox.ZMin))
     Mesh.Mesh(w.tessellate(0.02)).write(os.path.join(stl_dir, "Wheel_x2.stl"))
+    # キャスターホルダー: 下面 (鋼球の出る側) を下にする
+    c = make_caster(0)
+    c.translate(V(0, 0, -c.BoundBox.ZMin))
+    Mesh.Mesh(c.tessellate(0.02)).write(os.path.join(stl_dir, "Caster_x2.stl"))
 
     # レポート
     for name, shp in list(printed_assy.items()):
