@@ -8,6 +8,7 @@ ESP32 + LiDAR SLAM ローバー フレーム プロトタイプ (FreeCAD 1.x)
 座標系: X=前方, Y=左, Z=上, 原点=左右車輪軸の中点の真下 (床面)
 単位: mm
 """
+import math
 import os
 import FreeCAD as App
 import Part
@@ -37,6 +38,9 @@ SHAFT_D, SHAFT_FLAT, SHAFT_L = 3.0, 2.5, 10.0
 GB_CLR = 0.3                            # ギアボックス ポケットの隙間
 GB_POCKET_WALL = 2.0                    # ポケット側壁の厚み
 GB_POCKET_TOP = 33.0                    # ポケット側壁の上端 Z (ギアボックス上面は36)
+# 缶を押さえる結束バンドのスロット位置 (ギアボックス後端からの距離)。缶の後ろ約7mm はエンコーダで、
+# そこにかかると使えない (16 だとエンコーダに当たった。実物で確認)
+TIE_SLOT_OFFSETS = (6.0, 12.0)
 # PCB kicad/main (メイン基板) : 60x60, M3穴 50mmピッチ
 PCB_SIZE, PCB_HOLE_PITCH, PCB_T = 60.0, 50.0, 1.6
 # 電池ボックス BH-363-1B (単3x6 背中合わせ, 006P型スナップ, フタ・スイッチなし)
@@ -68,15 +72,24 @@ MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR   # 中段デ�
 PCB_STANDOFF = 5.0
 PCB_CLEAR = 25.0        # PCB上の部品クリアランス
 TOP_Z = MID_Z + PLATE_T + PCB_STANDOFF + PCB_T + PCB_CLEAR   # 上段デッキ下面
-BALL_D = 12.7           # キャスター用 1/2" 鋼球
+BALL_D = 11.7           # キャスター用のプラスチック球 (1/2" 鋼球が手に入らないため)
 CASTER_X = 45.0
-# キャスターは別部品のホルダーで鋼球を抱え、ベースの下から当てて皿ネジ (M3) で上から留める。
+# キャスターは別部品のホルダーで球を抱え、ベースの下から当てて皿ネジ (M3) で上から留める。
 # ベースの底面を平らにしてサポートを不要にするため
-CASTER_Z0 = 4.0         # ホルダー下面 (地上高)
+BALL_CLR = 0.4          # ホルダー内の球の隙間 (半径)。0.2 ではきつくて回らなかった
+# 球をモデル上で床から浮かせる量。球と床が同じ高さだとタイヤが 1〜2mm 浮いた (実物で確認)。
+# 上限は球の上端がベース上面 (Z=13) に届くまで (後ろのキャスターは電池の真下)
+CASTER_RAISE = 1.0
+BALL_Z = BALL_D / 2 + CASTER_RAISE   # 荷重がかかったときの球の中心
+CASTER_LIP = 0.5        # ホルダーの下の口の抜け止め (片側)
+# ホルダー下面 (地上高)。下の口が球の径 - 2*CASTER_LIP になる高さ (約3.6)
+CASTER_Z0 = BALL_Z - math.sqrt((BALL_D / 2 + BALL_CLR) ** 2 - (BALL_D / 2 - CASTER_LIP) ** 2)
+CASTER_CHAMFER = 1.0    # ホルダー下面 (床側) の外周の面取り。表裏の目印
 CASTER_R = 13.0         # ホルダー半径
 CASTER_SCREW_Y = 9.5    # ホルダー固定ネジの位置 (±Y)
-CASTER_SEAT_D = 9.0     # ベースの穴。鋼球はこの穴の縁 (Z≈11) で荷重を受ける
-BALL_CLR = 0.2          # ホルダー内の鋼球の隙間 (半径)
+# 球は、ベースの穴の縁で荷重を受ける。縁の高さを決めて、そこでの球の断面径を穴径にする
+CASTER_SEAT_Z = BASE_Z + 0.5
+CASTER_SEAT_D = 2 * math.sqrt((BALL_D / 2) ** 2 - (CASTER_SEAT_Z - BALL_Z) ** 2)
 M3_CSK_D = 6.4          # M3 皿ネジ頭の座ぐり径 (頭Φ6、90°)
 POST_D = 8.0            # 中段→上段の支柱
 BASE_POST_D = 8.0       # ベース→中段の支柱
@@ -91,6 +104,14 @@ BAT_Y0 = -32.2          # 電池の -Y 端面 (スナップは +Y 側)
 BAT_CLR = 0.5
 TRAY_WALL = 1.5
 TRAY_H = 8.0            # -Y 端の壁の高さ
+# ベースの肉抜き穴 (印刷時間の短縮)。(中心X, 中心Y, 長さX, 長さY, 角R) で、Y は ± に対称に置く。
+# 周りの部品 (モータ受け・配線穴・キャスターホルダー・支柱の補強・電池バンドの穴) から 3mm 以上離す
+BASE_LIGHTEN = [
+    (21.0, 21.0, 18.0, 22.0, 4.0),     # 前方 (モータ受けと配線穴の間)
+    (49.0, 25.0, 12.0, 12.0, 6.0),     # 前方の外側 (支柱とキャスターの間)
+    (-21.5, 13.0, 15.0, 17.0, 4.0),    # 電池の下 (前側)
+    (-44.5, 21.0, 17.0, 8.0, 3.0),     # 電池の下 (後ろの角)
+]
 
 
 def box(lx, ly, lz, cx=0, cy=0, z0=0):
@@ -110,6 +131,19 @@ def rounded_slot(length, width, h, cx, cy, z0, along_x=True):
     else:
         sh = box(width, length - width, h, cx, cy, z0)
         sh = sh.fuse([cyl(r, h, cx, cy - s, z0), cyl(r, h, cx, cy + s, z0)])
+    return sh.removeSplitter()
+
+
+def rounded_rect(lx, ly, r, h, cx, cy, z0):
+    # 角を R r で丸めた長方形の柱
+    sh = cyl(r, h, cx - lx / 2 + r, cy - ly / 2 + r, z0).fuse([
+        cyl(r, h, cx + lx / 2 - r, cy - ly / 2 + r, z0),
+        cyl(r, h, cx - lx / 2 + r, cy + ly / 2 - r, z0),
+        cyl(r, h, cx + lx / 2 - r, cy + ly / 2 - r, z0)])
+    if lx > 2 * r:
+        sh = sh.fuse(box(lx - 2 * r, ly, h, cx, cy, z0))
+    if ly > 2 * r:
+        sh = sh.fuse(box(lx, ly - 2 * r, h, cx, cy, z0))
     return sh.removeSplitter()
 
 
@@ -151,7 +185,8 @@ def make_base():
                         s * (GB_FRONT - GB_L), AXLE_Z, V(0, -s, 0)).common(
             box(CAN_D + 2, 2 * (CAN_L + 2), CAN_H + 0.4, 0, s * (GB_FRONT - GB_L), AXLE_Z - CAN_H / 2 - 0.2)))
         # 結束バンド用スロット (3 x 1.8)
-        for ty in (y_gb_rear - 6, y_gb_rear - 16):
+        for d in TIE_SLOT_OFFSETS:
+            ty = y_gb_rear - d
             cuts.append(box(16 + 2, 3, 1.8, 0, s * ty, AXLE_Z - 9))
         # 車輪逃げ (プレート貫通)
         cuts.append(box(56, WHEEL_W + 5, PLATE_T + 2, 0, s * WHEEL_Y, z0 - 1))
@@ -182,7 +217,7 @@ def make_base():
 
     # --- キャスター: 鋼球の座 + ホルダー固定用の皿ネジ穴 (底面は平ら)
     for cx in (CASTER_X, -CASTER_X):
-        cuts.append(Part.makeSphere(BALL_D / 2, V(cx, 0, BALL_D / 2)))
+        cuts.append(Part.makeSphere(BALL_D / 2, V(cx, 0, BALL_Z)))
         cuts.append(cyl(CASTER_SEAT_D / 2, PLATE_T + 2, cx, 0, z0 - 1))
         for sy in (1, -1):
             cuts.append(cyl(M3_CLR / 2, PLATE_T + 2, cx, sy * CASTER_SCREW_Y, z0 - 1))
@@ -192,6 +227,9 @@ def make_base():
 
     # --- 配線穴 / 軽量化
     cuts.append(rounded_slot(24, 10, PLATE_T + 2, 22, 0, z0 - 1))
+    for (lcx, lcy, llx, lly, lr) in BASE_LIGHTEN:
+        for sy in (1, -1):
+            cuts.append(rounded_rect(llx, lly, lr, PLATE_T + 2, lcx, sy * lcy, z0 - 1))
 
     p = p.fuse(adds)
     p = p.cut(cuts)
@@ -200,12 +238,15 @@ def make_base():
 
 # ================================================================ キャスターホルダー (別部品)
 def make_caster(cx):
-    # ベースの下面に当てる円盤。鋼球は上から入れ、下側の縁 (赤道より下) で抜け止めする
+    # ベースの下面に当てる円盤。鋼球は上から入れ、下側の縁 (赤道より下) で抜け止めする。
+    # 床側の外周を面取りして、表裏が分かるようにする
     z1 = BASE_Z
-    h = cyl(CASTER_R, z1 - CASTER_Z0, cx, 0, CASTER_Z0)
+    c = CASTER_CHAMFER
+    h = cyl(CASTER_R, z1 - CASTER_Z0 - c, cx, 0, CASTER_Z0 + c).fuse(
+        Part.makeCone(CASTER_R - c, CASTER_R, c, V(cx, 0, CASTER_Z0)))
     rb = BALL_D / 2 + BALL_CLR
-    cuts = [Part.makeSphere(rb, V(cx, 0, BALL_D / 2)),
-            cyl(rb, z1 - BALL_D / 2 + 1, cx, 0, BALL_D / 2)]
+    cuts = [Part.makeSphere(rb, V(cx, 0, BALL_Z)),
+            cyl(rb, z1 - BALL_Z + 1, cx, 0, BALL_Z)]
     for sy in (1, -1):
         cuts.append(cyl(SELF_TAP_M3 / 2, z1 - CASTER_Z0 + 2, cx, sy * CASTER_SCREW_Y, CASTER_Z0 - 1))
     return h.cut(cuts).removeSplitter()
@@ -318,7 +359,7 @@ def ref_parts():
     lmotor = cyl(7, 17 - LIDAR_MOTOR_GAP, 44, 0, lz + LIDAR_MOTOR_GAP)
     refs["LiDAR_X2"] = head.fuse(legs + [plate, lmotor])
     for x in (CASTER_X, -CASTER_X):
-        refs["Ball_%d" % x] = Part.makeSphere(BALL_D / 2, V(x, 0, BALL_D / 2))
+        refs["Ball_%d" % x] = Part.makeSphere(BALL_D / 2, V(x, 0, BALL_Z))
     return refs
 
 

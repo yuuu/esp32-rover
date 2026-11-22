@@ -59,10 +59,15 @@ def main():
         bore = bore.cut(h)
     bore = bore.removeSplitter()
 
+    # 4) キャスター: ベースの球の座 + 皿ネジ穴の周り (ホルダーは Caster_x2.stl をそのまま使う)
+    caster = crop(base, 2 * rf.CASTER_R + 4, 2 * rf.CASTER_R + 4, rf.CASTER_X, 0,
+                  z_base, z_base + rf.PLATE_T)
+
     os.makedirs(OUT_DIR, exist_ok=True)
     for name, shp in (("TestFit_Motor", motor),
                       ("TestFit_LiDAR", lidar),
-                      ("TestFit_Bore", bore)):
+                      ("TestFit_Bore", bore),
+                      ("TestFit_Caster", caster)):
         s = shp.copy()
         bb = s.BoundBox
         s.translate(rf.V(-(bb.XMin + bb.XMax) / 2, -(bb.YMin + bb.YMax) / 2, -bb.ZMin))
