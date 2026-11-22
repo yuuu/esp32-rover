@@ -51,7 +51,7 @@ BAT_SNAP = 2.4                           # スナップの突出 (+Y 端面)
 LIDAR_L, LIDAR_W, LIDAR_H = 96.0, 60.5, 50.3
 LIDAR_HEAD_D = 60.5
 LIDAR_HOLES = [(-35.3, 0.0), (36.0, 18.0), (36.0, -18.0)]   # 脚 (スタンドオフ) 3本の位置
-LIDAR_HOLE_D = 2.8      # M2.5 想定の貫通穴 (ネジ径はデータシートに記載なし)
+LIDAR_HOLE_D = 3.4      # M3 の貫通穴 (ネジ径はデータシートに記載なし。M3 で留める)
 LIDAR_PAD_D, LIDAR_PAD_H = 8.0, 2.0   # 脚を受ける座面 (底面モータとの隙間を確保)
 LIDAR_MOTOR_GAP = 2.5   # 脚の下端からLiDARモータ下面まで (50.3 - 47.8)
 LIDAR_LASER_Z = LIDAR_H - 7.9          # 脚の下端からレーザー中心まで
@@ -68,7 +68,12 @@ WHEEL_Y = GB_FRONT + WHEEL_GAP + HUB_L + WHEEL_W / 2   # 車輪中心面の Y (=
 # 電池の上面 + 後ろの壁の高さ + 持ち上げの余裕 にする
 BAT_REAR_WALL_H = 3.0   # 後ろの壁の高さ (電池が滑り落ちない程度)
 BAT_LIFT_CLR = 1.0
-MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR   # 中段デッキ下面 (=46)
+MOTOR_CABLE_CLR = 5.0   # 上記に足す余裕。モータのケーブル接続部と中段の間を空ける
+MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR + MOTOR_CABLE_CLR   # 中段デッキ下面 (=51)
+# ケーブルを通す切り欠き (後方)。外周から開いているので、コネクタを外さずに横から入れられる
+CABLE_NOTCH_W = 10.0
+MID_NOTCH_X = -36.0     # 中段の切り欠きの奥の端 X
+TOP_NOTCH_X = -48.0     # 上段の切り欠きの奥の端 X
 PCB_STANDOFF = 5.0
 PCB_CLEAR = 25.0        # PCB上の部品クリアランス
 TOP_Z = MID_Z + PLATE_T + PCB_STANDOFF + PCB_T + PCB_CLEAR   # 上段デッキ下面
@@ -145,6 +150,12 @@ def rounded_rect(lx, ly, r, h, cx, cy, z0):
     if ly > 2 * r:
         sh = sh.fuse(box(lx, ly - 2 * r, h, cx, cy, z0))
     return sh.removeSplitter()
+
+
+def cable_notch(x_in, z0):
+    # 後方の外周から X=x_in まで開いた切り欠き (奥の端は丸める)
+    x_out = -BODY_D / 2 - 5
+    return rounded_slot(x_in - x_out, CABLE_NOTCH_W, PLATE_T + 2, (x_in + x_out) / 2, 0, z0 - 1)
 
 
 def disk(z0):
@@ -273,10 +284,10 @@ def make_mid():
     for (x, y) in MID_POSTS:
         adds.append(flared_post(POST_D, TOP_Z - z1, x, y, z1))
         cuts.append(cyl(SELF_TAP_M3 / 2, 12, x, y, TOP_Z - 11))
-    # 配線穴 (モータ線 左右 / 電池線 後方 / 中央)
+    # 配線穴 (モータ線 左右 / 中央)、電池線は後方の切り欠き
     for s in (1, -1):
         cuts.append(rounded_slot(20, 8, PLATE_T + 2, 0, s * 38, z0 - 1))
-    cuts.append(rounded_slot(24, 8, PLATE_T + 2, -40, 0, z0 - 1, along_x=False))
+    cuts.append(cable_notch(MID_NOTCH_X, z0))
     cuts.append(rounded_slot(24, 8, PLATE_T + 2, 40, 0, z0 - 1, along_x=False))
     p = p.fuse(adds).cut(cuts)
     return p.removeSplitter()
@@ -293,8 +304,8 @@ def make_top():
     p = p.fuse([cyl(LIDAR_PAD_D / 2, LIDAR_PAD_H, x, y, z1) for (x, y) in LIDAR_HOLES])
     for (x, y) in LIDAR_HOLES:
         cuts.append(cyl(LIDAR_HOLE_D / 2, PLATE_T + LIDAR_PAD_H + 2, x, y, z0 - 1))
-    # ケーブル穴 (後方) / 中央の配線・軽量化穴
-    cuts.append(rounded_slot(24, 8, PLATE_T + 2, -52, 0, z0 - 1, along_x=False))
+    # ケーブルの切り欠き (後方) / 中央の配線・軽量化穴
+    cuts.append(cable_notch(TOP_NOTCH_X, z0))
     cuts.append(cyl(14, PLATE_T + 2, 0, 0, z0 - 1))
     p = p.cut(cuts)
     return p.removeSplitter()
