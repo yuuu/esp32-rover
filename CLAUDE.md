@@ -8,6 +8,7 @@
 - `cad/frame.py` — フレームの**唯一のソース**。`.FCStd` と STL はこのスクリプトから生成するので、直接編集しない
 - `cad/frame.FCStd` — 組立モデル。`Printed` グループが印刷部品、`Reference` グループが部品のダミー形状
 - `cad/stl/` — 印刷用 STL（Base_Plate, Mid_Deck, Top_Deck, Wheel_x2, Caster_x2）
+- `firmware/` — XIAO ESP32-S3 のファームウェア（ESP-IDF、C）。今はエンコーダのオドメトリだけで正方形を回り続ける（電源を入れて 3 秒後に走り出す（`AUTO_START_MS`）。走行中に BOOT ボタンを押すと止まり、もう一度押すと走り直す。周回数は `SQUARE_LAPS`、0 で無限）。書き込み直後のリセットでも走り出し、XIAO の 5V は VM とつながっているので USB 給電だけでもモータが回りうる。書き込む前に機体を持ち上げておく。ピン・左右の割り当て・機体寸法・制御のゲインは `firmware/main/config.h` にまとめてある
 
 ## コマンド
 ```sh
@@ -18,6 +19,20 @@
 - 起動時に出る `3DconnexionNavlib` のエラーは無害なので無視してよい
 - FreeCAD MCP（GUI用の RPC と `execute_code_headless`）はつながらなかった。Bash から `freecadcmd` を直接使う
 - 画像で確認したいときは、`freecadcmd` で matplotlib を使うスクリプトを実行し、部品を1つずつ描画する（FreeCAD に同梱の python には matplotlib が入っている。システムの python3 には入っていない）。複数部品をまとめて描くと重なり順が崩れて判断に使えない
+
+```sh
+# ファームウェアのビルド (ESP-IDF は Docker の espressif/idf:v5.5.4 を使う)
+cd firmware && docker run --rm -v "$PWD":/project -w /project espressif/idf:v5.5.4 idf.py build
+```
+- macOS の Docker からは USB が見えないので、書き込みはホストの esptool で行う（`idf.py build` の最後に出るコマンドを firmware/ で実行）。ポートは `/dev/cu.usbmodem*` で、つなぎ直すと番号が変わることがある（101 / 1101 など）
+
+## ファームウェア（firmware/）
+- モータドライバは IN/IN モード（MODE=GND、STBY は 3V3 固定）。片側の入力を H に固定し、反対側に PWM を入れる（駆動 / ブレーキ）
+- エンコーダは PCNT で 4逓倍（7PPR × 1:50 × 4 = 1400 カウント/回転）。電源は J1/J3 の 3番ピン（3V3）
+- 左の車輪はモータB（J3/J4）、右はモータA（J1/J2）（`LEFT_IS_A=0`）。回転とカウントの向き（`*_INVERT`）も実機で確認済み。配線を変えたら `ROVER_CHECK_MODE` を 1 にして書き込むと、左右の車輪を順に回してカウントを表示するので、それで確かめる
+  - 確認モードのビルドは `idf.py -B build_check -DCMAKE_C_FLAGS=-DROVER_CHECK_MODE=1 build`（通常版の build/ と分ける）
+  - 車輪を浮かせた状態で、デューティ 0.3 で約 1.1 回転/秒（≒0.21m/s）だった
+- 一辺 50cm の正方形の走行は実機で確認済み（スタートに戻ったときのずれは目で見てほぼなし）。`WHEEL_SPEED_AT_FULL_DUTY`（デューティ 1 での車輪の速さ）と PI のゲインは仮の値のまま、調整していない
 
 ## 設計の約束事（frame.py）
 - 座標系: X=前、Y=左、Z=上。原点は左右の車軸の中点の真下の床面。単位は mm
