@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-ESP32 + LiDAR SLAM ローバー フレーム プロトタイプ (FreeCAD 1.x)
+ESP32 + LiDAR SLAM rover frame prototype (FreeCAD 1.x)
 
-実行:  /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd cad/frame.py
-出力:  cad/frame.FCStd, cad/stl/*.stl
+Run:     freecadcmd cad/frame.py
+Output:  cad/frame.FCStd, cad/stl/*.stl
 
-座標系: X=前方, Y=左, Z=上, 原点=左右車輪軸の中点の真下 (床面)
-単位: mm
+Coordinates: X=forward, Y=left, Z=up, origin = on the floor directly below the midpoint of the axles
+Units: mm
 """
 import math
 import os
@@ -17,105 +17,108 @@ from FreeCAD import Vector as V
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ---------------------------------------------------------------- 部品寸法
-# タイヤ FS90R-W : Φ60 (ホイールΦ56) 幅8
+# ---------------------------------------------------------------- Part dimensions
+# Tire FS90R-W: 60 dia (wheel 56 dia), width 8
 WHEEL_D, WHEEL_W = 60.0, 8.0
-# ホイール (配布 STL の形状を寸法化したもの)。ハブと一体で印刷する
-WHEEL_RIM_D, WHEEL_RIM_IN_D = 50.0, 47.0     # リム外径 (両端), 内径
-WHEEL_BEAD_D, WHEEL_BEAD_W = 56.0, 4.0       # 幅中央のタイヤ受け
-WHEEL_BOSS_D, WHEEL_BORE_D = 20.0, 3.3       # 中央の円盤, 中心穴
+# Wheel (dimensioned from the shape of the distributed STL). Printed in one piece with the hub
+WHEEL_RIM_D, WHEEL_RIM_IN_D = 50.0, 47.0     # rim outer dia (both edges), inner dia
+WHEEL_BEAD_D, WHEEL_BEAD_W = 56.0, 4.0       # tire seat at the middle of the width
+WHEEL_BOSS_D, WHEEL_BORE_D = 20.0, 3.3       # center disk, center hole
 WHEEL_SPOKE_W, WHEEL_SPOKES = 6.0, 6
-HUB_D, HUB_L = 9.0, 3.0                      # ホイール内側のボス
-BORE_CLR = 0.33         # Dカット穴の隙間 (径・D面とも)。TestFit_Bore で 0.3 はきつく、0.35 はちょうど良い
-GB_BOSS_D, GB_BOSS_L = 4.0, 1.0              # ギアボックス前面の軸受けの出っ張り (長さは推定)
-# モータ MG12A06E-060310-50 (N20互換)
-# ギアボックス 幅(X) 高(Z) 長(Y)。エンコーダ基板が受け台に当たらない向きでは
-# 12mm 側が水平になる (テスト印刷で確認)
+HUB_D, HUB_L = 9.0, 3.0                      # boss on the inner side of the wheel
+BORE_CLR = 0.33         # D-cut bore clearance (diameter and flat). TestFit_Bore: 0.3 was tight, 0.35 was just right
+GB_BOSS_D, GB_BOSS_L = 4.0, 1.0              # bearing boss on the gearbox face (length is estimated)
+# Motor MG12A06E-060310-50 (N20 compatible)
+# Gearbox width (X), height (Z), length (Y). In the orientation where the encoder board clears
+# the cradle, the 12mm side is horizontal (confirmed by a test print)
 GB_W, GB_H, GB_L = 12.0, 10.0, 9.0
-CAN_D, CAN_L = 12.2, 22.0               # モータ+エンコーダ
-CAN_H = 10.0                            # 缶は上下 (Z) が平らで高さ10 (ギアボックスの 10mm 側と同じ向き)
+CAN_D, CAN_L = 12.2, 22.0               # motor + encoder
+CAN_H = 10.0                            # the can is flat top and bottom (Z), height 10 (same orientation as the gearbox 10mm side)
 SHAFT_D, SHAFT_FLAT, SHAFT_L = 3.0, 2.5, 10.0
-GB_CLR = 0.3                            # ギアボックス ポケットの隙間
-GB_POCKET_WALL = 2.0                    # ポケット側壁の厚み
-GB_POCKET_TOP = 33.0                    # ポケット側壁の上端 Z (ギアボックス上面は36)
-# 缶を押さえる結束バンドのスロット位置 (ギアボックス後端からの距離)。缶の後ろ約7mm はエンコーダで、
-# そこにかかると使えない (16 だとエンコーダに当たった。実物で確認)
+GB_CLR = 0.3                            # gearbox pocket clearance
+GB_POCKET_WALL = 2.0                    # pocket side wall thickness
+GB_POCKET_TOP = 33.0                    # top Z of the pocket side walls (gearbox top is 36)
+# Positions of the cable-tie slots holding the can (distance from the gearbox rear end). The rear
+# ~7mm of the can is the encoder, and a slot there is unusable (16 hit the encoder on the real part)
 TIE_SLOT_OFFSETS = (6.0, 12.0)
-# PCB kicad/main (メイン基板) : 60x60, M3穴 50mmピッチ
+# PCB pcb/main (main board): 60x60, M3 holes at 50mm pitch
 PCB_SIZE, PCB_HOLE_PITCH, PCB_T = 60.0, 50.0, 1.6
-# 電池ボックス BH-363-1B (単3x6 背中合わせ, 006P型スナップ, フタ・スイッチなし)
-BAT_L, BAT_W, BAT_H = 58.0, 45.0, 29.0   # L=電池の軸方向 (Y), W=X, H=2段 (高さは実測。データシートは28)
-BAT_SNAP = 2.4                           # スナップの突出 (+Y 端面)
-# LiDAR YDLIDAR X2 : 96 x 60.5 x 50.3 (データシート FIG1/FIG2, Marutsu版 YDLIDAR_X2.pdf)
-# 回転中心を原点に置き、モータ側を +X (前方) に向ける -> スキャン 0° が前方
+# Battery box BH-363-1B (6x AA back to back, 9V-type snap, no lid or switch)
+BAT_L, BAT_W, BAT_H = 58.0, 45.0, 29.0   # L=along the cells (Y), W=X, H=two layers (measured height; datasheet says 28)
+BAT_SNAP = 2.4                           # snap protrusion (+Y end face)
+# LiDAR YDLIDAR X2: 96 x 60.5 x 50.3 (datasheet FIG1/FIG2, Marutsu YDLIDAR_X2.pdf)
+# The rotation center is at the origin with the motor side facing +X (forward) -> scan 0 deg is forward
 LIDAR_L, LIDAR_W, LIDAR_H = 96.0, 60.5, 50.3
 LIDAR_HEAD_D = 60.5
-LIDAR_HOLES = [(-35.3, 0.0), (36.0, 18.0), (36.0, -18.0)]   # 脚 (スタンドオフ) 3本の位置
-LIDAR_HOLE_D = 3.4      # M3 の貫通穴 (ネジ径はデータシートに記載なし。M3 で留める)
-LIDAR_PAD_D, LIDAR_PAD_H = 8.0, 2.0   # 脚を受ける座面 (底面モータとの隙間を確保)
-LIDAR_MOTOR_GAP = 2.5   # 脚の下端からLiDARモータ下面まで (50.3 - 47.8)
-LIDAR_LASER_Z = LIDAR_H - 7.9          # 脚の下端からレーザー中心まで
+LIDAR_HOLES = [(-35.3, 0.0), (36.0, 18.0), (36.0, -18.0)]   # positions of the 3 legs (standoffs)
+LIDAR_HOLE_D = 3.4      # M3 clearance hole (the datasheet gives no screw size; fastened with M3)
+LIDAR_PAD_D, LIDAR_PAD_H = 8.0, 2.0   # pads under the legs (clearance for the bottom motor)
+LIDAR_MOTOR_GAP = 2.5   # from the leg bottom to the LiDAR motor bottom (50.3 - 47.8)
+LIDAR_LASER_Z = LIDAR_H - 7.9          # from the leg bottom to the laser center
 
-# ---------------------------------------------------------------- フレーム寸法
-BODY_D = 130.0          # 円形デッキ径
+# ---------------------------------------------------------------- Frame dimensions
+BODY_D = 130.0          # round deck diameter
 PLATE_T = 3.0
-BASE_Z = 10.0           # ベース下面の地上高
-AXLE_Z = WHEEL_D / 2    # 車軸高さ 30
-GB_FRONT = 38.5         # ギアボックス前面の Y (軸はここから約9mm 出る)
-WHEEL_GAP = 0.5         # ギアボックス前面とハブの隙間
-WHEEL_Y = GB_FRONT + WHEEL_GAP + HUB_L + WHEEL_W / 2   # 車輪中心面の Y (=46)
-# 電池は中段を付けたまま後ろへ抜く。後ろの壁を越えられるよう、中段の下面は
-# 電池の上面 + 後ろの壁の高さ + 持ち上げの余裕 にする
-BAT_REAR_WALL_H = 3.0   # 後ろの壁の高さ (電池が滑り落ちない程度)
+BASE_Z = 10.0           # ground clearance of the base bottom
+AXLE_Z = WHEEL_D / 2    # axle height 30
+GB_FRONT = 38.5         # Y of the gearbox face (the shaft sticks out about 9mm from here)
+WHEEL_GAP = 0.5         # gap between the gearbox face and the hub
+WHEEL_Y = GB_FRONT + WHEEL_GAP + HUB_L + WHEEL_W / 2   # Y of the wheel center plane (=46)
+# The battery slides out rearward with the mid deck attached. To clear the rear wall, the mid
+# deck bottom is at battery top + rear wall height + lift margin
+BAT_REAR_WALL_H = 3.0   # rear wall height (just enough to keep the battery from sliding off)
 BAT_LIFT_CLR = 1.0
-MOTOR_CABLE_CLR = 5.0   # 上記に足す余裕。モータのケーブル接続部と中段の間を空ける
-MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR + MOTOR_CABLE_CLR   # 中段デッキ下面 (=51)
-# ケーブルを通す切り欠き (後方)。外周から開いているので、コネクタを外さずに横から入れられる
+MOTOR_CABLE_CLR = 5.0   # added on top of the above; keeps the motor cable connectors clear of the mid deck
+MID_Z = BASE_Z + PLATE_T + BAT_H + BAT_REAR_WALL_H + BAT_LIFT_CLR + MOTOR_CABLE_CLR   # mid deck bottom (=51)
+# Cable notch (rear). It is open to the outer edge, so cables go in from the side without unplugging
 CABLE_NOTCH_W = 10.0
-MID_NOTCH_X = -36.0     # 中段の切り欠きの奥の端 X
-TOP_NOTCH_X = -48.0     # 上段の切り欠きの奥の端 X
+MID_NOTCH_X = -36.0     # X of the inner end of the mid deck notch
+TOP_NOTCH_X = -48.0     # X of the inner end of the top deck notch
 PCB_STANDOFF = 5.0
-PCB_CLEAR = 25.0        # PCB上の部品クリアランス
-TOP_Z = MID_Z + PLATE_T + PCB_STANDOFF + PCB_T + PCB_CLEAR   # 上段デッキ下面
-BALL_D = 11.7           # キャスター用のプラスチック球 (1/2" 鋼球が手に入らないため)
+PCB_CLEAR = 25.0        # component clearance above the PCB
+TOP_Z = MID_Z + PLATE_T + PCB_STANDOFF + PCB_T + PCB_CLEAR   # top deck bottom
+BALL_D = 11.7           # plastic caster ball (a 1/2" steel ball was not available)
 CASTER_X = 45.0
-# キャスターは別部品のホルダーで球を抱え、ベースの下から当てて皿ネジ (M3) で上から留める。
-# ベースの底面を平らにしてサポートを不要にするため
-BALL_CLR = 0.4          # ホルダー内の球の隙間 (半径)。0.2 ではきつくて回らなかった
-# 球をモデル上で床から浮かせる量。球と床が同じ高さだとタイヤが 1〜2mm 浮いた (実物で確認)。
-# 上限は球の上端がベース上面 (Z=13) に届くまで (後ろのキャスターは電池の真下)
+# The caster ball is held by a separate holder pressed against the base from below and fastened
+# with M3 countersunk screws from above. This keeps the base bottom flat so it needs no supports
+BALL_CLR = 0.4          # ball clearance in the holder (radius). 0.2 was too tight to roll
+# How far the ball is raised off the floor in the model. With the ball at floor level the tires
+# floated 1-2mm (on the real part). The limit is the ball top reaching the base top (Z=13),
+# since the rear caster is directly under the battery
 CASTER_RAISE = 1.0
-BALL_Z = BALL_D / 2 + CASTER_RAISE   # 荷重がかかったときの球の中心
-CASTER_LIP = 0.5        # ホルダーの下の口の抜け止め (片側)
-# ホルダー下面 (地上高)。下の口が球の径 - 2*CASTER_LIP になる高さ (約3.6)
+BALL_Z = BALL_D / 2 + CASTER_RAISE   # ball center under load
+CASTER_LIP = 0.5        # retaining lip at the holder's lower opening (per side)
+# Holder bottom (ground clearance): the height where the lower opening equals ball dia - 2*CASTER_LIP (about 3.6)
 CASTER_Z0 = BALL_Z - math.sqrt((BALL_D / 2 + BALL_CLR) ** 2 - (BALL_D / 2 - CASTER_LIP) ** 2)
-CASTER_CHAMFER = 1.0    # ホルダー下面 (床側) の外周の面取り。表裏の目印
-CASTER_R = 13.0         # ホルダー半径
-CASTER_SCREW_Y = 9.5    # ホルダー固定ネジの位置 (±Y)
-# 球は、ベースの穴の縁で荷重を受ける。縁の高さを決めて、そこでの球の断面径を穴径にする
+CASTER_CHAMFER = 1.0    # chamfer on the outer edge of the holder bottom (floor side); marks which side is which
+CASTER_R = 13.0         # holder radius
+CASTER_SCREW_Y = 9.5    # holder screw position (+-Y)
+# The ball bears on the edge of the hole in the base. The edge height is chosen first, and the
+# hole diameter is the ball's cross-section diameter at that height
 CASTER_SEAT_Z = BASE_Z + 0.5
 CASTER_SEAT_D = 2 * math.sqrt((BALL_D / 2) ** 2 - (CASTER_SEAT_Z - BALL_Z) ** 2)
-M3_CSK_D = 6.4          # M3 皿ネジ頭の座ぐり径 (頭Φ6、90°)
-POST_D = 8.0            # 中段→上段の支柱
-BASE_POST_D = 8.0       # ベース→中段の支柱
-POST_FLARE = 3.0        # 支柱の根元の円すい状の補強 (半径方向・高さとも)
-SELF_TAP_M3 = 2.6       # M3 タッピング下穴
+M3_CSK_D = 6.4          # countersink diameter for an M3 flat head (head 6 dia, 90 deg)
+POST_D = 8.0            # mid -> top deck posts
+BASE_POST_D = 8.0       # base -> mid deck posts
+POST_FLARE = 3.0        # conical reinforcement at the post root (radial and height)
+SELF_TAP_M3 = 2.6       # M3 self-tapping pilot hole
 M3_CLR = 3.4
 BASE_POSTS = [(sx * 40.0, sy * 42.0) for sx in (1, -1) for sy in (1, -1)]
 MID_POSTS = [(sx * 50.0, sy * 25.0) for sx in (1, -1) for sy in (1, -1)]
-# 電池: 後方に横置き (電池の軸が Y)。前面はモータ受けとの間に結束バンド用の隙間を残す
-BAT_X_FRONT = -10.5     # 電池前面 X
-BAT_Y0 = -32.2          # 電池の -Y 端面 (スナップは +Y 側)
+# Battery: lying at the rear (cells along Y). Leaves a gap for the cable ties between its front and the motor cradles
+BAT_X_FRONT = -10.5     # battery front X
+BAT_Y0 = -32.2          # battery -Y end face (the snap is on the +Y side)
 BAT_CLR = 0.5
 TRAY_WALL = 1.5
-TRAY_H = 8.0            # -Y 端の壁の高さ
-# ベースの肉抜き穴 (印刷時間の短縮)。(中心X, 中心Y, 長さX, 長さY, 角R) で、Y は ± に対称に置く。
-# 周りの部品 (モータ受け・配線穴・キャスターホルダー・支柱の補強・電池バンドの穴) から 3mm 以上離す
+TRAY_H = 8.0            # height of the -Y end wall
+# Lightening holes in the base (shorter print time). (center X, center Y, length X, length Y, corner R),
+# mirrored in Y. Keep at least 3mm from surrounding features (motor cradles, cable holes, caster
+# holders, post flares, battery strap slots)
 BASE_LIGHTEN = [
-    (21.0, 21.0, 18.0, 22.0, 4.0),     # 前方 (モータ受けと配線穴の間)
-    (49.0, 25.0, 12.0, 12.0, 6.0),     # 前方の外側 (支柱とキャスターの間)
-    (-21.5, 13.0, 15.0, 17.0, 4.0),    # 電池の下 (前側)
-    (-44.5, 21.0, 17.0, 8.0, 3.0),     # 電池の下 (後ろの角)
+    (21.0, 21.0, 18.0, 22.0, 4.0),     # front (between the motor cradle and the cable hole)
+    (49.0, 25.0, 12.0, 12.0, 6.0),     # front outer (between the post and the caster)
+    (-21.5, 13.0, 15.0, 17.0, 4.0),    # under the battery (front)
+    (-44.5, 21.0, 17.0, 8.0, 3.0),     # under the battery (rear corner)
 ]
 
 
@@ -140,7 +143,7 @@ def rounded_slot(length, width, h, cx, cy, z0, along_x=True):
 
 
 def rounded_rect(lx, ly, r, h, cx, cy, z0):
-    # 角を R r で丸めた長方形の柱
+    # rectangular prism with corners rounded to radius r
     sh = cyl(r, h, cx - lx / 2 + r, cy - ly / 2 + r, z0).fuse([
         cyl(r, h, cx + lx / 2 - r, cy - ly / 2 + r, z0),
         cyl(r, h, cx - lx / 2 + r, cy + ly / 2 - r, z0),
@@ -153,7 +156,7 @@ def rounded_rect(lx, ly, r, h, cx, cy, z0):
 
 
 def cable_notch(x_in, z0):
-    # 後方の外周から X=x_in まで開いた切り欠き (奥の端は丸める)
+    # notch open from the rear edge to X=x_in (inner end rounded)
     x_out = -BODY_D / 2 - 5
     return rounded_slot(x_in - x_out, CABLE_NOTCH_W, PLATE_T + 2, (x_in + x_out) / 2, 0, z0 - 1)
 
@@ -163,70 +166,71 @@ def disk(z0):
 
 
 def flared_post(d, h, x, y, z1):
-    # 根元を円すいで太らせた支柱 (折れにくくする)。
-    # 補強が外周 (R65) に届く場合は、外周より 1mm 内側で切り取る
+    # post with a conical flare at the root (harder to snap).
+    # Where the flare reaches the outer edge (R65), it is trimmed 1mm inside the edge
     r = d / 2
     flare = Part.makeCone(r + POST_FLARE, r, POST_FLARE, V(x, y, z1 - 0.01)).common(
         cyl(BODY_D / 2 - 1, POST_FLARE + 1, 0, 0, z1 - 0.5))
     return cyl(r, h, x, y, z1).fuse(flare)
 
 
-# ================================================================ ベースプレート
+# ================================================================ Base plate
 def make_base():
     z0, z1 = BASE_Z, BASE_Z + PLATE_T
     p = disk(z0)
     adds, cuts = [], []
 
-    # --- モータ取付 (左右対称)
+    # --- Motor mounts (mirrored left/right)
     for s in (1, -1):
-        # モータは上から落とし込む: ポケットにギアボックス、サドルに缶。
-        # 軸側の壁は無い (軸をホイールに長く差し込むため)
-        gb_len = GB_L + GB_CLR                  # ポケット長 (Y)
-        y_gb_rear = GB_FRONT - gb_len            # ギアボックス後端 = 缶サドル前端
-        # ギアボックス ポケット (上面開放, 側壁 GB_POCKET_WALL)
+        # The motor drops in from above: gearbox into the pocket, can into the saddle.
+        # There is no wall on the shaft side (so the shaft goes deeper into the wheel)
+        gb_len = GB_L + GB_CLR                  # pocket length (Y)
+        y_gb_rear = GB_FRONT - gb_len            # gearbox rear end = can saddle front end
+        # Gearbox pocket (open top, side walls GB_POCKET_WALL)
         pw = GB_W + GB_CLR + 2 * GB_POCKET_WALL
         adds.append(box(pw, gb_len, GB_POCKET_TOP - z1, 0,
                         s * (GB_FRONT - gb_len / 2), z1))
         cuts.append(box(GB_W + GB_CLR, gb_len + 0.02, 20, 0,
                         s * (GB_FRONT - gb_len / 2), AXLE_Z - GB_H / 2))
-        # 缶サドル (缶Φ12.2 +0.4、底は缶の平らな下面 +0.2)。前端面がギアボックス下側の角を受けて後退を止める
+        # Can saddle (can 12.2 dia +0.4, floor at the can's flat bottom +0.2). Its front face
+        # catches the lower edge of the gearbox and stops it from moving back
         y_c = s * (y_gb_rear - CAN_L / 2)
         adds.append(box(16, CAN_L, AXLE_Z - z1, 0, y_c, z1))
         cuts.append(cyl((CAN_D + 0.4) / 2, CAN_L + 2, 0,
                         s * (GB_FRONT - GB_L), AXLE_Z, V(0, -s, 0)).common(
             box(CAN_D + 2, 2 * (CAN_L + 2), CAN_H + 0.4, 0, s * (GB_FRONT - GB_L), AXLE_Z - CAN_H / 2 - 0.2)))
-        # 結束バンド用スロット (3 x 1.8)
+        # Cable-tie slots (3 x 1.8)
         for d in TIE_SLOT_OFFSETS:
             ty = y_gb_rear - d
             cuts.append(box(16 + 2, 3, 1.8, 0, s * ty, AXLE_Z - 9))
-        # 車輪逃げ (プレート貫通)
+        # Wheel clearance (through the plate)
         cuts.append(box(56, WHEEL_W + 5, PLATE_T + 2, 0, s * WHEEL_Y, z0 - 1))
 
-    # --- 電池ホルダー (後方)
+    # --- Battery holder (rear)
     bx1 = BAT_X_FRONT
     bx0 = bx1 - BAT_W
     bcx = (bx0 + bx1) / 2
     by0, by1 = BAT_Y0, BAT_Y0 + BAT_L
-    # 後ろ壁 (低い。電池は中段を付けたまま、持ち上げて後ろへ抜く)
+    # Rear wall (low; the battery is lifted and slid out rearward with the mid deck attached)
     adds.append(box(TRAY_WALL, 50, BAT_REAR_WALL_H,
                     bx0 - BAT_CLR - TRAY_WALL / 2, (by0 + by1) / 2, z1))
-    # -Y 端の壁 (両端のみ。中央はバンドを通す)
+    # -Y end wall (ends only; the strap passes through the middle)
     wy = by0 - BAT_CLR - TRAY_WALL / 2
     for (xa, xb) in ((bx1 - 5.5, bx1), (bx0 + 1.5, bx0 + 6.5)):
         adds.append(box(xb - xa, TRAY_WALL, TRAY_H, (xa + xb) / 2, wy, z1))
-    # 前ストッパ (左右のモータ受けの間)
+    # Front stopper (between the left and right motor cradles)
     adds.append(box(1.5, 8, 6, bx1 + BAT_CLR + 0.75, 0, z1))
-    # 面ファスナーバンド用スロット (Y方向に電池を巻く)。+Y 側はスナップの先
-    # -Y 側は支柱に当たらないよう端の壁の真下まで寄せる
+    # Hook-and-loop strap slots (the strap wraps the battery along Y). The +Y one is past the snap;
+    # the -Y one sits right under the end wall to stay clear of the post
     for sy in (by0 - BAT_CLR - TRAY_WALL - 0.5, by1 + BAT_SNAP + 1.5):
         cuts.append(rounded_slot(20, 3, PLATE_T + 2, bcx, sy, z0 - 1))
 
-    # --- 支柱 (ベース→中段)
+    # --- Posts (base -> mid deck)
     for (x, y) in BASE_POSTS:
         adds.append(flared_post(BASE_POST_D, MID_Z - z1, x, y, z1))
         cuts.append(cyl(SELF_TAP_M3 / 2, 12, x, y, MID_Z - 11))
 
-    # --- キャスター: 鋼球の座 + ホルダー固定用の皿ネジ穴 (底面は平ら)
+    # --- Casters: ball seat + countersunk screw holes for the holder (flat bottom)
     for cx in (CASTER_X, -CASTER_X):
         cuts.append(Part.makeSphere(BALL_D / 2, V(cx, 0, BALL_Z)))
         cuts.append(cyl(CASTER_SEAT_D / 2, PLATE_T + 2, cx, 0, z0 - 1))
@@ -236,7 +240,7 @@ def make_base():
             cuts.append(Part.makeCone(M3_CLR / 2, M3_CSK_D / 2 + 0.5, hd + 0.5,
                                       V(cx, sy * CASTER_SCREW_Y, z1 - hd)))
 
-    # --- 配線穴 / 軽量化
+    # --- Cable hole / lightening
     cuts.append(rounded_slot(24, 10, PLATE_T + 2, 22, 0, z0 - 1))
     for (lcx, lcy, llx, lly, lr) in BASE_LIGHTEN:
         for sy in (1, -1):
@@ -247,10 +251,11 @@ def make_base():
     return p.removeSplitter()
 
 
-# ================================================================ キャスターホルダー (別部品)
+# ================================================================ Caster holder (separate part)
 def make_caster(cx):
-    # ベースの下面に当てる円盤。鋼球は上から入れ、下側の縁 (赤道より下) で抜け止めする。
-    # 床側の外周を面取りして、表裏が分かるようにする
+    # Disk pressed against the base bottom. The ball goes in from above and is retained by the
+    # lower edge (below its equator). The outer edge on the floor side is chamfered so the two
+    # sides can be told apart
     z1 = BASE_Z
     c = CASTER_CHAMFER
     h = cyl(CASTER_R, z1 - CASTER_Z0 - c, cx, 0, CASTER_Z0 + c).fuse(
@@ -263,28 +268,28 @@ def make_caster(cx):
     return h.cut(cuts).removeSplitter()
 
 
-# ================================================================ 中段デッキ (PCB)
+# ================================================================ Mid deck (PCB)
 def make_mid():
     z0, z1 = MID_Z, MID_Z + PLATE_T
     p = disk(z0)
     adds, cuts = [], []
-    # 車輪の逃げ (外周まで開放)
+    # Wheel clearance (open to the outer edge)
     for s in (1, -1):
         cuts.append(box(70, 40, PLATE_T + 2, 0, s * (WHEEL_Y + 13), z0 - 1))
-    # ベース支柱への固定穴 (M3, 座ぐり無し)
+    # Holes onto the base posts (M3, no counterbore)
     for (x, y) in BASE_POSTS:
         cuts.append(cyl(M3_CLR / 2, PLATE_T + 2, x, y, z0 - 1))
-    # PCBスタンドオフ
+    # PCB standoffs
     h = PCB_HOLE_PITCH / 2
     for x in (h, -h):
         for y in (h, -h):
             adds.append(cyl(3.5, PCB_STANDOFF, x, y, z1))
             cuts.append(cyl(SELF_TAP_M3 / 2, PCB_STANDOFF + PLATE_T + 2, x, y, z0 - 1))
-    # 上段への支柱
+    # Posts to the top deck
     for (x, y) in MID_POSTS:
         adds.append(flared_post(POST_D, TOP_Z - z1, x, y, z1))
         cuts.append(cyl(SELF_TAP_M3 / 2, 12, x, y, TOP_Z - 11))
-    # 配線穴 (モータ線 左右 / 中央)、電池線は後方の切り欠き
+    # Cable holes (motor wires left/right, center); battery wires go through the rear notch
     for s in (1, -1):
         cuts.append(rounded_slot(20, 8, PLATE_T + 2, 0, s * 38, z0 - 1))
     cuts.append(cable_notch(MID_NOTCH_X, z0))
@@ -293,18 +298,18 @@ def make_mid():
     return p.removeSplitter()
 
 
-# ================================================================ 上段デッキ (LiDAR)
+# ================================================================ Top deck (LiDAR)
 def make_top():
     z0, z1 = TOP_Z, TOP_Z + PLATE_T
     p = disk(z0)
     cuts = []
     for (x, y) in MID_POSTS:
         cuts.append(cyl(M3_CLR / 2, PLATE_T + 2, x, y, z0 - 1))
-    # LiDAR 脚の座面 + 貫通穴 (下からネジ止め)
+    # LiDAR leg pads + through holes (screwed from below)
     p = p.fuse([cyl(LIDAR_PAD_D / 2, LIDAR_PAD_H, x, y, z1) for (x, y) in LIDAR_HOLES])
     for (x, y) in LIDAR_HOLES:
         cuts.append(cyl(LIDAR_HOLE_D / 2, PLATE_T + LIDAR_PAD_H + 2, x, y, z0 - 1))
-    # ケーブルの切り欠き (後方) / 中央の配線・軽量化穴
+    # Cable notch (rear) / center cable and lightening hole
     cuts.append(cable_notch(TOP_NOTCH_X, z0))
     cuts.append(cyl(14, PLATE_T + 2, 0, 0, z0 - 1))
     p = p.cut(cuts)
@@ -312,15 +317,15 @@ def make_top():
 
 
 def d_bore(clr, h, z0):
-    # Dカット軸 (Φ3・D面2.5) 用の穴。径・D面とも clr を足す。D面は +Y 側
+    # Bore for a D-cut shaft (3 dia, flat 2.5). clr is added to both the diameter and the flat. Flat on +Y
     br = (SHAFT_D + clr) / 2
     flat = SHAFT_FLAT + clr
     return cyl(br, h, 0, 0, z0).common(box(10, 10, h, 0, -5 + (flat - br), z0))
 
 
-# ================================================================ ホイール (ハブ一体, FS90R-W のホイール部)
+# ================================================================ Wheel (with integrated hub, replaces the FS90R-W wheel)
 def make_wheel():
-    # 原点基準で作成 (Z+ が外側)。Z=0〜HUB_L がハブ、その外側がホイール
+    # Built at the origin (Z+ is outward). Z=0..HUB_L is the hub, the wheel is outside it
     z0 = HUB_L
     h = cyl(HUB_D / 2, HUB_L)
     w = cyl(WHEEL_RIM_D / 2, WHEEL_W, 0, 0, z0).fuse(
@@ -332,21 +337,21 @@ def make_wheel():
         bar.rotate(V(0, 0, 0), V(0, 0, 1), 30 + k * 360 / WHEEL_SPOKES)
         win = win.cut(bar)
     w = h.fuse(w.cut(win))
-    # Dカット穴を全長に通す
+    # D-cut bore through the full length
     w = w.cut(d_bore(BORE_CLR, 20, -1))
-    # ギアボックスの軸受けの出っ張りの逃げ (先端との隙間 0.5)
+    # Relief for the gearbox bearing boss (0.5 clearance at its tip)
     w = w.cut(cyl(GB_BOSS_D / 2 + 0.5, GB_BOSS_L - WHEEL_GAP + 0.5 + 1, 0, 0, -1))
     return w.removeSplitter()
 
 
 def place_wheel(wheel, s):
     sh = wheel.copy()
-    sh.rotate(V(0, 0, 0), V(1, 0, 0), -90 * s)   # Z+ → 外側 (s*Y)
+    sh.rotate(V(0, 0, 0), V(1, 0, 0), -90 * s)   # Z+ -> outward (s*Y)
     sh.translate(V(0, s * (GB_FRONT + WHEEL_GAP), AXLE_Z))
     return sh
 
 
-# ================================================================ 参照部品 (ダミー形状)
+# ================================================================ Reference parts (placeholder shapes)
 def ref_parts():
     refs = {}
     for s, n in ((1, "L"), (-1, "R")):
@@ -361,8 +366,8 @@ def ref_parts():
     bat = box(BAT_W, BAT_L, BAT_H, bcx, BAT_Y0 + BAT_L / 2, BASE_Z + PLATE_T)
     snap = box(20, BAT_SNAP, 8, bcx, BAT_Y0 + BAT_L + BAT_SNAP / 2, BASE_Z + PLATE_T + 6)
     refs["Battery_AAx6"] = bat.fuse(snap)
-    # LiDAR (FIG1/FIG2 からの概形): 脚3本 / ベース板 / 回転ヘッド / 底面モータ
-    lz = TOP_Z + PLATE_T + LIDAR_PAD_H          # 脚の下端
+    # LiDAR (rough shape from FIG1/FIG2): 3 legs / base plate / rotating head / bottom motor
+    lz = TOP_Z + PLATE_T + LIDAR_PAD_H          # leg bottom
     legs = [cyl(2.5, 17, x, y, lz) for (x, y) in LIDAR_HOLES]
     plate = cyl(LIDAR_HEAD_D / 2, 2, 0, 0, lz + 17).fuse(
         [box(50, 46, 2, 25, 0, lz + 17), cyl(5, 2, -35.3, 0, lz + 17)])
@@ -374,7 +379,7 @@ def ref_parts():
     return refs
 
 
-# ================================================================ 生成
+# ================================================================ Generation
 def main():
     doc = App.newDocument("RoverFrame")
     printed = {
@@ -401,42 +406,42 @@ def main():
         grp_r.addObject(o)
     doc.recompute()
 
-    # 色 (GUI 起動時のみ有効)
+    # Colors (only when the GUI is running)
     try:
         import FreeCADGui  # noqa
     except Exception:
         pass
 
-    # 生成物なので上書き前に消し、FreeCAD に .FCBak を作らせない
+    # It is a generated file, so delete it before overwriting to keep FreeCAD from writing a .FCBak
     fcstd = os.path.join(OUT_DIR, "frame.FCStd")
     if os.path.exists(fcstd):
         os.remove(fcstd)
     doc.saveAs(fcstd)
 
-    # STL (印刷向き: 平らな面を下)
+    # STL (print orientation: flat face down)
     stl_dir = os.path.join(OUT_DIR, "stl")
     os.makedirs(stl_dir, exist_ok=True)
     for name, shp in printed.items():
         s = shp.copy()
         s.translate(V(0, 0, -s.BoundBox.ZMin))
         Mesh.Mesh(s.tessellate(0.05)).write(os.path.join(stl_dir, name + ".stl"))
-    # ホイール: 外側の面を下にする
+    # Wheel: outer face down
     w = wheel.copy()
     w.rotate(V(0, 0, 0), V(1, 0, 0), 180)
     w.translate(V(0, 0, -w.BoundBox.ZMin))
     Mesh.Mesh(w.tessellate(0.02)).write(os.path.join(stl_dir, "Wheel_x2.stl"))
-    # キャスターホルダー: 下面 (鋼球の出る側) を下にする
+    # Caster holder: bottom (the side the ball sticks out of) down
     c = make_caster(0)
     c.translate(V(0, 0, -c.BoundBox.ZMin))
     Mesh.Mesh(c.tessellate(0.02)).write(os.path.join(stl_dir, "Caster_x2.stl"))
 
-    # レポート
+    # Report
     for name, shp in list(printed_assy.items()):
         bb = shp.BoundBox
         print("%-12s valid=%s solids=%d  vol=%.0fmm3  bbox X[%.1f,%.1f] Y[%.1f,%.1f] Z[%.1f,%.1f]" % (
             name, shp.isValid(), len(shp.Solids), shp.Volume,
             bb.XMin, bb.XMax, bb.YMin, bb.YMax, bb.ZMin, bb.ZMax))
-    # 干渉チェック (印刷部品 vs 参照部品)
+    # Interference check (printed parts vs reference parts)
     refs = ref_parts()
     allp = dict(printed_assy)
     for pn, ps in allp.items():

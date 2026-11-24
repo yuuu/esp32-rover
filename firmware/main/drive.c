@@ -1,4 +1,4 @@
-// 車輪の速度制御 (フィードフォワード + PI) と自己位置の更新
+// Wheel speed control (feedforward + PI) and pose update
 #include "drive.h"
 
 #include <math.h>
@@ -9,12 +9,12 @@
 #include "motor.h"
 
 #define M_PER_COUNT ((float)M_PI * WHEEL_DIAMETER_M / ENC_COUNTS_PER_REV)
-#define INTEGRAL_LIMIT 0.1f   // 積分項がデューティで ±0.6 程度までに収まるように
+#define INTEGRAL_LIMIT 0.1f   // Keeps the integral term within about +-0.6 duty
 
 typedef struct {
     int32_t last_count;
-    float speed;      // 測定した速さ [m/s] (ローパス後)
-    float target;     // 目標の速さ [m/s]
+    float speed;      // measured speed [m/s] (after low-pass)
+    float target;     // target speed [m/s]
     float integral;
 } wheel_state_t;
 
@@ -62,7 +62,7 @@ void drive_tick(float dt)
     odom_update(dist[WHEEL_L], dist[WHEEL_R]);
 
     if (s_stopped) {
-        return;   // ブレーキのまま
+        return;   // stay braked
     }
     for (int i = 0; i < WHEEL_COUNT; i++) {
         wheel_state_t *s = &s_wheels[i];

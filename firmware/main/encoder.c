@@ -1,11 +1,11 @@
-// エンコーダ (A/B 相) を PCNT で 4逓倍カウントする
+// Counts the A/B encoder phases with PCNT (quadrature x4)
 #include "encoder.h"
 
 #include "config.h"
 #include "driver/pulse_cnt.h"
 #include "esp_err.h"
 
-// PCNT のカウンタは 16bit。この値に達するたびに内部で累積させる (accum_count)
+// The PCNT counter is 16-bit. Each time it reaches this value, it is accumulated internally (accum_count)
 #define PCNT_LIMIT 10000
 
 static pcnt_unit_handle_t s_units[WHEEL_COUNT];
@@ -24,7 +24,7 @@ static pcnt_unit_handle_t new_quadrature_unit(gpio_num_t pin_a, gpio_num_t pin_b
     pcnt_glitch_filter_config_t filter = {.max_glitch_ns = 1000};
     ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(unit, &filter));
 
-    // 2チャンネルで A/B 両方の立ち上がり・立ち下がりを数える (4逓倍)
+    // Two channels count both rising and falling edges of A and B (x4)
     pcnt_chan_config_t cfg_a = {.edge_gpio_num = pin_a, .level_gpio_num = pin_b};
     pcnt_chan_config_t cfg_b = {.edge_gpio_num = pin_b, .level_gpio_num = pin_a};
     pcnt_channel_handle_t ch_a, ch_b;
@@ -39,11 +39,11 @@ static pcnt_unit_handle_t new_quadrature_unit(gpio_num_t pin_a, gpio_num_t pin_b
     ESP_ERROR_CHECK(pcnt_channel_set_level_action(ch_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
                                                   PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
 
-    // 累積カウントには上下限のウォッチポイントが要る
+    // Accumulated counting needs watch points at both limits
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, PCNT_LIMIT));
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, -PCNT_LIMIT));
 
-    // エンコーダの出力がオープンコレクタでも読めるようにプルアップする
+    // Pull up so open-collector encoder outputs can be read too
     gpio_pullup_en(pin_a);
     gpio_pullup_en(pin_b);
 

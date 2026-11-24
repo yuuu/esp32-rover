@@ -33,8 +33,8 @@ cad/
   frame.FCStd     Generated assembly model
   test_fit.py     Generates small test-fit pieces
   stl/            Printable parts (Base_Plate, Mid_Deck, Top_Deck, Wheel_x2, Caster_x2)
-  stl/test/       Test-fit pieces
-kicad/            Main board: 60×60 mm, M3 holes on a 50 mm pitch
+  stl/test/       Test-fit pieces (generated, not tracked)
+pcb/              Main board (KiCad): 60×60 mm, M3 holes on a 50 mm pitch
 firmware/         ESP-IDF firmware (C)
   main/config.h   Pins, wheel mapping, dimensions, control gains, motion parameters
 ```
@@ -85,3 +85,6 @@ Then adjust `LEFT_IS_A`, `MOTOR_*_INVERT` and `ENC_*_INVERT` in `config.h`.
 - Read the LiDAR scans and build a map with SLAM
 - Tune the wheel speed controller
 - Add a power switch, and replace the L7805 with a switching regulator
+
+## License
+MIT. See [LICENSE](LICENSE). This covers the firmware, the CAD scripts and generated models, and the KiCad board files.

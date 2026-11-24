@@ -1,4 +1,4 @@
-// 差動2輪のデッドレコニング
+// Dead reckoning for a differential-drive robot
 #include "odometry.h"
 
 #include <math.h>
@@ -16,7 +16,7 @@ void odom_update(float dl, float dr)
 {
     float ds = (dl + dr) / 2.0f;
     float dtheta = (dr - dl) / TRACK_WIDTH_M;
-    // 区間の中間の向きで進んだとみなす (2次のルンゲ=クッタ)
+    // Assume motion along the mid-interval heading (2nd-order Runge-Kutta)
     float mid = s_pose.theta + dtheta / 2.0f;
     s_pose.x += ds * cosf(mid);
     s_pose.y += ds * sinf(mid);

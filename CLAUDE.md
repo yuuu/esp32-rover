@@ -5,7 +5,7 @@ A small differential-drive SLAM rover: XIAO ESP32-S3, TC78H653FTG motor driver, 
 ## Repository layout
 - `cad/frame.py` — the **single source** of the frame. `cad/frame.FCStd` and every STL under `cad/stl/` are generated from it; never edit them directly.
 - `cad/test_fit.py` — cuts small test-fit pieces out of the frame into `cad/stl/test/`. Regenerate it whenever `frame.py` changes.
-- `kicad/` — main board (schematic and PCB).
+- `pcb/` — main board (schematic and PCB).
 - `firmware/` — ESP-IDF firmware in C. Pins, wheel mapping, robot dimensions and control gains are all in `firmware/main/config.h`.
 
 ## Commands
@@ -35,7 +35,7 @@ idf.py -B build_check -DCMAKE_C_FLAGS=-DROVER_CHECK_MODE=1 build
 - Keep hardware-specific values in `config.h`. Leave the other modules (`motor`, `encoder`, `odometry`, `drive`) generic.
 - After changing the wiring, flash with `ROVER_CHECK_MODE=1` and confirm `LEFT_IS_A` and the `*_INVERT` flags before running.
 
-### KiCad (`kicad/`)
+### KiCad (`pcb/`)
 - Do not hand-edit `.kicad_*` files. Change them through KiCad, or through tooling that drives KiCad.
 - Do not modify the schematic file while it is open in the schematic editor, because saving from the editor overwrites the change.
 - Run DRC only after refilling zones and saving.

@@ -1,10 +1,10 @@
-// TC78H653FTG (IN/IN モード) のモータ駆動
+// Motor drive for the TC78H653FTG (IN/IN mode)
 //
-// 片側の入力を H に固定し、もう片側に PWM を入れる「駆動 / ブレーキ」の切り替えで回す。
-// 駆動 / 空転 (片側を L に固定) より、低速でもデューティと速度の関係が素直になる。
-//   前進: IN1=H, IN2=PWM (H の間はブレーキ) → デューティ d は IN2 の L の割合
-//   後退: IN1=PWM, IN2=H
-//   停止: IN1=IN2=H (ブレーキ)
+// One input is held H and PWM goes to the other, switching between drive and brake.
+// Compared with drive / coast (one input held L), duty maps to speed more linearly, even at low speed.
+//   Forward: IN1=H, IN2=PWM (brake while H) -> duty d is the fraction of IN2 that is L
+//   Reverse: IN1=PWM, IN2=H
+//   Stop:    IN1=IN2=H (brake)
 #include "motor.h"
 
 #include <math.h>
@@ -15,7 +15,7 @@
 
 #define PWM_FREQ_HZ 20000
 #define PWM_RES LEDC_TIMER_10_BIT
-#define PWM_FULL (1 << 10)   // LEDC はデューティ 2^bit で 100% になる
+#define PWM_FULL (1 << 10)   // LEDC reaches 100% at duty 2^bit
 
 typedef struct {
     ledc_channel_t ch_in1;
@@ -32,7 +32,7 @@ static void add_channel(ledc_channel_t ch, gpio_num_t pin)
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .channel = ch,
         .timer_sel = LEDC_TIMER_0,
-        .duty = PWM_FULL,   // 起動時はブレーキ
+        .duty = PWM_FULL,   // brake at startup
         .hpoint = 0,
     };
     ESP_ERROR_CHECK(ledc_channel_config(&cfg));
