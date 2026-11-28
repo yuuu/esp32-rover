@@ -1,7 +1,7 @@
 // Counts the A/B encoder phases with PCNT (quadrature x4)
 #include "encoder.h"
 
-#include "config.h"
+#include "rover_config.h"
 #include "driver/pulse_cnt.h"
 #include "esp_err.h"
 

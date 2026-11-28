@@ -1,5 +1,9 @@
 #pragma once
 
+// Hardware of the rover shared by every C project under firmware/: pins, wheel mapping and
+// direction, dimensions and wheel speed control. What a project does with the rover (its driving
+// parameters) goes in that project's own header.
+
 #include "driver/gpio.h"
 
 // ================================================================ Pins
@@ -15,19 +19,18 @@
 #define PIN_ENC_B_A GPIO_NUM_7       // D8 -> J4 pin1
 #define PIN_ENC_B_B GPIO_NUM_8       // D9 -> J4 pin2
 #define PIN_START_BUTTON GPIO_NUM_0  // XIAO BOOT button (LOW when pressed)
+// YDLIDAR X2 (J5, PH 5P). The X2 only transmits, at 115200 baud 8N1
+#define PIN_LIDAR_RX GPIO_NUM_44     // D7 <- J5 pin2 (LiDAR Tx)
+#define PIN_LIDAR_MCTR GPIO_NUM_9    // D10 -> J5 pin5 (M_CTR; left as an input, the X2's default speed)
 
 // ================================================================ Left/right mapping and direction
-// Flash with ROVER_CHECK_MODE set to 1 to check these. The values below are verified on the robot
+// Check these with rover_check_wheels() (c-square built with ROVER_CHECK_MODE=1).
+// The values below are verified on the robot
 #define LEFT_IS_A 0        // 1: left is motor A (J1) / encoder A (J2), 0: left is B (J3/J4)
 #define MOTOR_L_INVERT 1   // 1 if a positive duty turns the wheel backward
 #define MOTOR_R_INVERT 0   // The motors face each other, so one side is reversed
 #define ENC_L_INVERT 0     // 1 if the count decreases when the wheel turns forward
 #define ENC_R_INVERT 1
-
-// When 1, the rover does not drive; it turns each wheel briefly and prints the encoder counts
-#ifndef ROVER_CHECK_MODE
-#define ROVER_CHECK_MODE 0
-#endif
 
 // ================================================================ Robot
 #define WHEEL_DIAMETER_M 0.060f   // FS90R-W tire, 60mm
@@ -42,18 +45,3 @@
 #define WHEEL_KP 1.5f                    // speed error [m/s] -> duty
 #define WHEEL_KI 6.0f
 #define WHEEL_SPEED_LPF 0.3f             // low-pass filter on measured speed (1 disables it)
-
-// ================================================================ Driving (square)
-#define SQUARE_SIDE_M 0.50f
-#define SQUARE_TURN_LEFT 1        // 1: turn left (counterclockwise), 0: turn right
-#define SQUARE_LAPS 0             // Number of laps. 0 runs until stopped (BOOT button stops it)
-#define AUTO_START_MS 3000        // Delay from power-on to start. 0 waits for the BOOT button
-#define CRUISE_SPEED 0.25f        // Straight-line speed [m/s] (square verified at 0.15)
-#define LINEAR_ACCEL 0.50f        // [m/s^2]
-#define MIN_SPEED 0.03f           // Keep at least this speed right before the target
-#define HEADING_KP 4.0f           // heading error [rad] -> angular velocity [rad/s]
-#define TURN_RATE 2.5f            // Angular velocity for turning in place [rad/s]
-#define ANGULAR_ACCEL 6.0f        // [rad/s^2]
-#define MIN_TURN_RATE 0.3f
-#define TURN_TOLERANCE_RAD 0.01f  // about 0.6 deg
-#define PAUSE_MS 300              // Pause between straight segments and turns

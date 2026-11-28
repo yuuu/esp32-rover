@@ -10,3 +10,5 @@ void drive_stop(void);
 // Call every control period: reads the encoders, updates the pose, and controls both wheel speeds
 void drive_tick(float dt);
 pose_t drive_pose(void);
+// Measured linear velocity v [m/s] and angular velocity w [rad/s], from the filtered wheel speeds
+void drive_speed(float *v, float *w);

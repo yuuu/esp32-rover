@@ -10,13 +10,14 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "config.h"
+#include "button.h"
+#include "check.h"
 #include "drive.h"
-#include "encoder.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "motor.h"
+#include "rover_config.h"
+#include "square_config.h"
 
 static const char *TAG = "rover";
 
@@ -43,52 +44,6 @@ static void corner(int i, float *x, float *y)
     static const float cy[] = {0, 0, 1, 1};
     *x = cx[i % 4] * SQUARE_SIDE_M;
     *y = cy[i % 4] * SQUARE_SIDE_M * TURN_SIGN;
-}
-
-static void button_init(void)
-{
-    gpio_config_t cfg = {
-        .pin_bit_mask = 1ULL << PIN_START_BUTTON,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-    };
-    gpio_config(&cfg);
-}
-
-static void wait_start_button(void)
-{
-    ESP_LOGI(TAG, "Press the BOOT button to start");
-    while (gpio_get_level(PIN_START_BUTTON) != 0) {
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-    while (gpio_get_level(PIN_START_BUTTON) == 0) {
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000));   // start after the hand is off the robot
-}
-
-static bool button_pressed(void)
-{
-    return gpio_get_level(PIN_START_BUTTON) == 0;
-}
-
-// Turn each wheel briefly and print how the count changes (for checking directions in config.h)
-static void check_wheels(void)
-{
-    static const char *names[] = {"left", "right"};
-    for (int w = 0; w < WHEEL_COUNT; w++) {
-        int32_t before = encoder_get(w);
-        ESP_LOGI(TAG, "Turning the %s wheel forward (1 s)", names[w]);
-        motor_set(w, 0.3f);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        motor_set(w, 0.0f);
-        vTaskDelay(pdMS_TO_TICKS(300));
-        int32_t delta = encoder_get(w) - before;
-        ESP_LOGI(TAG, "%s: count %+ld (%.2f rev)", names[w], (long)delta,
-                 (float)delta / ENC_COUNTS_PER_REV);
-    }
-    ESP_LOGI(TAG, "Check: did the named wheel turn (else LEFT_IS_A), did it turn forward "
-                  "(else MOTOR_*_INVERT), is the count positive (else ENC_*_INVERT)");
 }
 
 static void run_square(void)
@@ -181,9 +136,7 @@ static void run_square(void)
     drive_stop();
     pose_t p = drive_pose();
     ESP_LOGI(TAG, "Stopped: x=%.3f y=%.3f theta=%.1f deg", p.x, p.y, DEG(p.theta));
-    while (button_pressed()) {   // wait for release, or a held button would skip the next start wait
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
+    button_wait_release();   // a held button would otherwise skip the next start wait
 }
 
 void app_main(void)
@@ -195,15 +148,17 @@ void app_main(void)
         ESP_LOGI(TAG, "Starting in %d ms", AUTO_START_MS);
         vTaskDelay(pdMS_TO_TICKS(AUTO_START_MS));
     } else {
-        wait_start_button();
+        ESP_LOGI(TAG, "Press the BOOT button to start");
+        button_wait_click();
     }
     while (true) {
         if (ROVER_CHECK_MODE) {
-            check_wheels();
+            rover_check_wheels();
         } else {
             odom_reset();
             run_square();
         }
-        wait_start_button();
+        ESP_LOGI(TAG, "Press the BOOT button to start");
+        button_wait_click();
     }
 }
