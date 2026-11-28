@@ -1,0 +1,77 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs the whole pipeline offline: a simulated rover wanders a room, its
+# packets go through the same decoding, X2 parsing and SLAM as the real
+# rover's, and the result is compared with the ground truth.
+#
+#   bin/simulate [--seconds 120] [--seed 1] [--out out]
+#
+# Writes <out>/map.png (green: truth, red: odometry, blue: SLAM, orange: the
+# room's walls) and prints how far odometry and SLAM ended up from the truth.
+require "fileutils"
+require "optparse"
+require_relative "../lib/rover_slam"
+include RoverSlam
+
+opts = { seconds: 120.0, seed: 1, out: File.expand_path("../out", __dir__) }
+OptionParser.new do |o|
+  o.on("--seconds S", Float) { |v| opts[:seconds] = v }
+  o.on("--seed N", Integer) { |v| opts[:seed] = v }
+  o.on("--out DIR") { |v| opts[:out] = v }
+end.parse!
+
+world = World.sample_room
+rover = SimRover.new(world, seed: opts[:seed])
+session = Session.new
+wander = Wander.new
+truth_log = [] # [t_ms, Pose]
+truth = []
+errors_odom = []
+errors_slam = []
+dt = 0.01
+cmd = [0.0, 0.0]
+started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+(opts[:seconds] / dt).round.times do |k|
+  if (k % 10).zero? # commands at 10 Hz, as the bridge sends them
+    pts = session.last_scan ? session.slam.robot_points(session.last_scan) : []
+    cmd = k * dt < 1.0 || pts.empty? ? [0.0, 0.0] : wander.command(pts)
+    rover.command(*cmd)
+  end
+  rover.step(dt).each do |packet|
+    session.receive(packet).each do |step|
+      t = session.last_scan_t_ms
+      _, at = truth_log.min_by { |tm, _| (tm - t).abs }
+      truth << at
+      errors_odom << at.distance(step.odom)
+      errors_slam << at.distance(step.pose)
+    end
+  end
+  truth_log << [rover.t_ms, rover.truth.dup]
+  truth_log.shift while truth_log.size > 100
+  if (k % 1000).zero? && k.positive?
+    s = session.last_step
+    puts format("t=%5.1fs  scans %4d  slam %s  odom err %.3f m  slam err %.3f m%s", k * dt, session.slam.scans,
+                s.pose, errors_odom.last, errors_slam.last, s.matched ? "" : "  (unmatched)")
+  end
+end
+
+slam = session.slam
+elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+mean = ->(a) { a.sum / a.size }
+puts
+puts format("%d scans in %.0f s simulated (%.1f s of CPU, %.0f ms a scan); %d unmatched; %d X2 checksum errors",
+            slam.scans, opts[:seconds], elapsed, elapsed * 1000 / slam.scans, slam.rejected, session.parser.errors)
+puts format("odometry: mean error %.3f m, final %.3f m", mean.call(errors_odom), errors_odom.last)
+puts format("SLAM:     mean error %.3f m, final %.3f m", mean.call(errors_slam), errors_slam.last)
+heading = ->(a, b) { (Pose.wrap(a.theta - b.theta) * 180 / Math::PI).abs }
+puts format("final heading error: odometry %.1f deg, SLAM %.1f deg",
+            heading.call(truth.last, slam.odom_trajectory.last), heading.call(truth.last, slam.trajectory.last))
+
+FileUtils.mkdir_p(opts[:out])
+path = File.join(opts[:out], "map.png")
+MapImage.render(slam.map, walls: world.segments,
+                          trajectories: { [40, 170, 40] => truth, [220, 40, 40] => slam.odom_trajectory,
+                                          [40, 80, 230] => slam.trajectory }).save(path)
+puts "wrote #{path}"

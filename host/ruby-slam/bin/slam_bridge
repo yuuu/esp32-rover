@@ -1,0 +1,121 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Talks to the rover (firmware/c-slam-bridge, or bin/fake_rover): sends
+# velocity commands at 10 Hz, runs SLAM on what comes back, and writes the
+# map to <out>/map.png every few seconds.
+#
+#   bin/slam_bridge ROVER_ADDRESS [--port 5600] [--auto] [--seconds S] [--out out]
+#
+# Keys: w/s forward/back, a/d turn, space stop, q quit. --auto wanders by
+# itself instead (for the fake rover, or a clear floor). The rover stops by
+# itself half a second after the last command, so quitting stops it.
+require "fileutils"
+require "io/console"
+require "optparse"
+require "socket"
+require_relative "../lib/rover_slam"
+include RoverSlam
+
+opts = { port: Protocol::DEFAULT_PORT, auto: false, seconds: nil, out: File.expand_path("../out", __dir__) }
+OptionParser.new do |o|
+  o.banner = "usage: bin/slam_bridge ROVER_ADDRESS [options]"
+  o.on("--port N", Integer) { |v| opts[:port] = v }
+  o.on("--auto", "wander by itself") { opts[:auto] = true }
+  o.on("--seconds S", Float, "quit after S seconds") { |v| opts[:seconds] = v }
+  o.on("--out DIR") { |v| opts[:out] = v }
+end.parse!
+address = ARGV.shift or abort("usage: bin/slam_bridge ROVER_ADDRESS [options]")
+
+SPEED = 0.15
+TURN = 1.2
+sock = UDPSocket.new
+sock.connect(address, opts[:port])
+session = Session.new
+wander = Wander.new
+cmd = [0.0, 0.0]
+seq = 0
+FileUtils.mkdir_p(opts[:out])
+map_path = File.join(opts[:out], "map.png")
+started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+next_cmd = started
+next_save = started + 5
+next_status = started + 1
+interactive = !opts[:auto] && $stdin.tty?
+
+save_map = lambda do
+  slam = session.slam
+  MapImage.render(slam.map, trajectories: { [220, 40, 40] => slam.odom_trajectory,
+                                            [40, 80, 230] => slam.trajectory }).save(map_path)
+end
+
+key = lambda do
+  return nil unless interactive
+
+  $stdin.read_nonblock(1, exception: false).then { |c| c.is_a?(String) ? c : nil }
+end
+
+run = lambda do
+  puts "talking to #{address}:#{opts[:port]}; #{opts[:auto] ? "wandering" : "keys: w/s/a/d, space stops, q quits"}\r"
+  loop do
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    break if opts[:seconds] && now - started > opts[:seconds]
+
+    case key.call
+    when "w" then cmd = [SPEED, 0.0]
+    when "s" then cmd = [-SPEED, 0.0]
+    when "a" then cmd = [0.0, TURN]
+    when "d" then cmd = [0.0, -TURN]
+    when " " then cmd = [0.0, 0.0]
+    when "q", "\u0003" then break
+    end
+
+    if now >= next_cmd
+      next_cmd += 0.1
+      if opts[:auto]
+        pts = session.last_scan ? session.slam.robot_points(session.last_scan) : []
+        cmd = pts.empty? ? [0.0, 0.0] : wander.command(pts)
+      end
+      sock.send(Protocol.command(*cmd, seq: seq += 1, t_ms: ((now - started) * 1000).round), 0)
+    end
+
+    while IO.select([sock], nil, nil, 0)
+      data = sock.recv_nonblock(2048, exception: false)
+      break unless data.is_a?(String)
+
+      session.receive(data)
+    end
+
+    if now >= next_status
+      next_status += 1
+      s = session.last_step
+      o = session.odom
+      status = if s
+                 format("scans %d  pose %s  match %.2f%s  X2 %.1f Hz  cmd %.2f %.2f", session.slam.scans, s.pose,
+                        s.score, s.matched ? "" : " (odometry)", session.last_scan.frequency, *cmd)
+               elsif o
+                 format("odometry only (no X2 data yet)  odom (%.3f, %.3f)  cmd %.2f %.2f", o.x, o.y, *cmd)
+               else
+                 "waiting for the rover..."
+               end
+      flags = o && o.flags & Protocol::FLAG_ESTOP != 0 ? "  [E-STOP]" : ""
+      print "#{status}#{flags}\r\n"
+    end
+    if now >= next_save && session.slam.scans.positive?
+      next_save += 5
+      save_map.call
+    end
+    sleep 0.005
+  end
+end
+
+if interactive
+  $stdin.raw { run.call }
+else
+  run.call
+end
+sock.send(Protocol.command(0.0, 0.0, seq: seq + 1), 0)
+if session.slam.scans.positive?
+  save_map.call
+  puts "wrote #{map_path} (#{session.slam.scans} scans)"
+end

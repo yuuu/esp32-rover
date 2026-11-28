@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Stands in for the rover running firmware/c-slam-bridge: listens on UDP,
+# drives a simulated rover in a simulated room at the velocities it is sent,
+# and streams odometry and X2 bytes back in real time. Point bin/slam_bridge
+# at it to try the whole loop without the hardware.
+#
+#   bin/fake_rover [--port 5600] [--seed 1]
+require "optparse"
+require "socket"
+require_relative "../lib/rover_slam"
+include RoverSlam
+
+$stdout.sync = true
+opts = { port: Protocol::DEFAULT_PORT, seed: 1 }
+OptionParser.new do |o|
+  o.on("--port N", Integer) { |v| opts[:port] = v }
+  o.on("--seed N", Integer) { |v| opts[:seed] = v }
+end.parse!
+
+sock = UDPSocket.new
+sock.bind("0.0.0.0", opts[:port])
+rover = SimRover.new(World.sample_room, seed: opts[:seed])
+host = nil
+dt = 0.01
+next_t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+last_log = next_t
+puts "fake rover listening on UDP #{opts[:port]}"
+
+loop do
+  loop do
+    data, addr = sock.recvfrom_nonblock(64, exception: false)
+    break if data == :wait_readable
+
+    pkt = Protocol.decode(data)
+    next if pkt.nil?
+
+    from = [addr[3], addr[1]]
+    puts "streaming to #{from.join(":")}" if host != from
+    host = from
+    rover.command(pkt.v, pkt.w) if pkt.is_a?(Protocol::Command)
+  end
+  rover.step(dt).each { |packet| sock.send(packet, 0, *host) } if host
+  rover.step(dt) unless host
+  now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  if now - last_log > 5
+    last_log = now
+    puts format("t=%.0fs truth %s odom %s%s", rover.time, rover.truth, rover.odom, rover.stopped? ? " (stopped)" : "")
+  end
+  next_t += dt
+  sleep(next_t - now) if next_t > now
+end
