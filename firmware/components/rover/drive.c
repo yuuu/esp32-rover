@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "config.h"
+#include "rover_config.h"
 #include "encoder.h"
 #include "motor.h"
 
@@ -76,4 +76,10 @@ void drive_tick(float dt)
 pose_t drive_pose(void)
 {
     return odom_get();
+}
+
+void drive_speed(float *v, float *w)
+{
+    *v = (s_wheels[WHEEL_L].speed + s_wheels[WHEEL_R].speed) / 2.0f;
+    *w = (s_wheels[WHEEL_R].speed - s_wheels[WHEEL_L].speed) / TRACK_WIDTH_M;
 }

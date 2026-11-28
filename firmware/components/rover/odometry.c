@@ -3,7 +3,7 @@
 
 #include <math.h>
 
-#include "config.h"
+#include "rover_config.h"
 
 static pose_t s_pose;
 

@@ -23,12 +23,18 @@ cad/stl/test/
 # Claude Code local settings
 .claude/settings.local.json
 
-# ESP-IDF (firmware/): build outputs and the config generated from sdkconfig.defaults
-firmware/build/
-firmware/build_check/
-firmware/sdkconfig
-firmware/sdkconfig.old
-firmware/managed_components/
+# ESP-IDF (firmware/<project>/): build outputs and the config generated from sdkconfig.defaults
+firmware/*/build/
+firmware/*/build_check/
+firmware/*/sdkconfig
+firmware/*/sdkconfig.old
+firmware/*/managed_components/
+# Local settings such as Wi-Fi credentials (see firmware/c-slam-bridge/README.md)
+firmware/*/sdkconfig.local
+firmware/*/config.rb
 
 # Claude Code personal notes (private to this checkout)
 CLAUDE.local.md
+
+# Host-side SLAM output
+host/ruby-slam/out/

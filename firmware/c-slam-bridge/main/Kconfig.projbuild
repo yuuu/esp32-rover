@@ -1,0 +1,15 @@
+menu "Rover SLAM bridge"
+
+config ROVER_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config ROVER_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config ROVER_UDP_PORT
+    int "UDP port the rover listens on"
+    default 5600
+
+endmenu

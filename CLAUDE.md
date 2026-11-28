@@ -6,7 +6,9 @@ A small differential-drive SLAM rover: XIAO ESP32-S3, TC78H653FTG motor driver, 
 - `cad/frame.py` — the **single source** of the frame. `cad/frame.FCStd` and every STL under `cad/stl/` are generated from it; never edit them directly.
 - `cad/test_fit.py` — cuts small test-fit pieces out of the frame into `cad/stl/test/`. Regenerate it whenever `frame.py` changes.
 - `pcb/` — main board (schematic and PCB).
-- `firmware/` — ESP-IDF firmware in C. Pins, wheel mapping, robot dimensions and control gains are all in `firmware/main/config.h`.
+- `firmware/<language>-<purpose>/` — firmware projects (`c-square`, `ruby-square`, `c-slam-bridge`; see `firmware/README.md`). Name new ones the same way.
+- `firmware/components/rover/` — ESP-IDF component shared by the C projects. Pins, wheel mapping, robot dimensions and control gains are all in its `include/rover_config.h`; `firmware/ruby-square/rover_config.rb` mirrors it for Ruby.
+- `host/ruby-slam/` — host-side SLAM in plain Ruby, with a simulated rover (`bin/simulate`, `bin/fake_rover`). Its packets mirror `firmware/c-slam-bridge/main/protocol.h`.
 
 ## Commands
 ```sh
@@ -14,14 +16,20 @@ A small differential-drive SLAM rover: XIAO ESP32-S3, TC78H653FTG motor driver, 
 freecadcmd cad/frame.py
 freecadcmd cad/test_fit.py
 
-# Build the firmware (ESP-IDF v5.5 in Docker)
-cd firmware && docker run --rm -v "$PWD":/project -w /project espressif/idf:v5.5.4 idf.py build
+# Build a C firmware project (ESP-IDF v5.5 in Docker; mount firmware/ so ../components is reachable)
+cd firmware && docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/firmware -w /firmware/c-square espressif/idf:v5.5.4 idf.py build
 
-# Wheel/encoder direction check build (kept separate from build/)
+# Wheel/encoder direction check build of c-square (kept separate from build/)
 idf.py -B build_check -DCMAKE_C_FLAGS=-DROVER_CHECK_MODE=1 build
+
+# Build a Ruby firmware project: from an espinel checkout (needs its pulse_counter package)
+bundle exec rake build PROJECT=<path>/firmware/ruby-square
+
+# Host SLAM: tests, and the whole pipeline in simulation
+cd host/ruby-slam && rake test && bin/simulate
 ```
 - Flash with esptool on the host using the command printed at the end of `idf.py build`.
-- The rover starts driving right after reset, and USB power alone can spin the motors. Lift the rover before flashing.
+- `c-square` and `ruby-square` start driving right after reset, and USB power alone can spin the motors. Lift the rover before flashing.
 
 ## Conventions
 ### CAD (`cad/frame.py`)
@@ -32,7 +40,7 @@ idf.py -B build_check -DCMAKE_C_FLAGS=-DROVER_CHECK_MODE=1 build
 - Keep the bottom of the base flat so it prints without supports.
 
 ### Firmware (`firmware/`)
-- Keep hardware-specific values in `config.h`. Leave the other modules (`motor`, `encoder`, `odometry`, `drive`) generic.
+- Keep hardware-specific values in `rover_config.h` (and the same in `ruby-square/rover_config.rb`). Leave the shared modules (`motor`, `encoder`, `odometry`, `drive`) generic, and keep a project's own parameters in that project.
 - After changing the wiring, flash with `ROVER_CHECK_MODE=1` and confirm `LEFT_IS_A` and the `*_INVERT` flags before running.
 
 ### KiCad (`pcb/`)

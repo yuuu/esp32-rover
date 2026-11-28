@@ -4,7 +4,7 @@ A small, low-cost differential-drive rover for experimenting with SLAM. A Seeed 
 
 Inspired by the Vstone LightRover E32 and the Maker's Pet Mini.
 
-> **Status:** early prototype. The firmware currently drives a 50 cm square using wheel odometry only. The LiDAR is mounted and wired but not used yet.
+> **Status:** early prototype. The rover drives a 50 cm square using wheel odometry only (in C and in Ruby). A Wi-Fi bridge and a host-side SLAM are written and tested in simulation; they have not run with the LiDAR yet.
 
 ## Hardware
 | Part | Model |
@@ -35,8 +35,13 @@ cad/
   stl/            Printable parts (Base_Plate, Mid_Deck, Top_Deck, Wheel_x2, Caster_x2)
   stl/test/       Test-fit pieces (generated, not tracked)
 pcb/              Main board (KiCad): 60×60 mm, M3 holes on a 50 mm pitch
-firmware/         ESP-IDF firmware (C)
-  main/config.h   Pins, wheel mapping, dimensions, control gains, motion parameters
+firmware/         Firmware projects, one directory each (see firmware/README.md)
+  components/rover/  Rover hardware shared by the C projects (rover_config.h: pins, dimensions, gains)
+  c-square/       C (ESP-IDF): drives a square by wheel odometry
+  ruby-square/    Ruby (espinel): the same square run
+  c-slam-bridge/  C (ESP-IDF): Wi-Fi bridge that streams odometry and LiDAR data to a SLAM host
+host/
+  ruby-slam/      Host-side SLAM in plain Ruby, with a simulator to try it without the hardware
 ```
 
 ## Building the frame
@@ -50,39 +55,29 @@ freecadcmd cad/test_fit.py   # writes cad/stl/test/*.stl
 All dimensions are constants at the top of `cad/frame.py`. The base bottom is flat, so it prints without supports. The wheels need supports for the outer rim.
 
 ## Firmware
-Built with ESP-IDF v5.5. Docker is the easiest way:
+Each directory under `firmware/` is a project of its own, named `<language>-<purpose>`. See [firmware/README.md](firmware/README.md) for the list and how to build each one.
+
+| Project | |
+|---|---|
+| [`c-square`](firmware/c-square/) | Drives a 50 cm square by wheel odometry (feedforward + PI wheel speed control at 100 Hz, trapezoidal profiles) |
+| [`ruby-square`](firmware/ruby-square/) | The same square run written in Ruby, compiled ahead of time by [espinel](https://github.com/yuuu/espinel) |
+| [`c-slam-bridge`](firmware/c-slam-bridge/) | Joins Wi-Fi, streams odometry and the raw LiDAR bytes over UDP, and drives at the velocity the host commands |
+
+> ⚠️ `c-square` and `ruby-square` start driving right after reset, including right after flashing. USB power alone can spin the motors, so lift the rover before flashing.
+
+## SLAM (host side)
+[`host/ruby-slam`](host/ruby-slam/) is a small scan-matching SLAM in plain Ruby (no gems). It talks to `c-slam-bridge`, and it comes with a simulated rover and room, so the whole pipeline can be tried before the LiDAR is mounted:
 
 ```sh
-cd firmware
-docker run --rm -v "$PWD":/project -w /project espressif/idf:v5.5.4 idf.py build
+cd host/ruby-slam
+bin/simulate                         # offline: writes out/map.png and compares SLAM with the ground truth
+bin/fake_rover &                     # a stand-in for the rover on UDP
+bin/slam_bridge 127.0.0.1 --auto     # the same program you point at the real rover
 ```
-
-Flash with `idf.py flash`, or with the esptool command printed at the end of the build. On macOS, Docker cannot reach USB devices, so run esptool on the host.
-
-### What it does
-- Reads both encoders with the PCNT peripheral in 4× quadrature mode (1400 counts per wheel revolution).
-- Estimates the pose (x, y, θ) from differential-drive odometry.
-- Controls each wheel's speed with feedforward plus a PI controller, at 100 Hz.
-- Drives a square: it goes straight, pauses, turns 90° in place, and repeats. Speed and turn rate follow a trapezoidal profile.
-
-Behavior:
-- The rover starts 3 s after power-on (`AUTO_START_MS`).
-- Pressing the BOOT button while driving stops it. Pressing it again starts a new run.
-- It keeps looping by default (`SQUARE_LAPS = 0`).
-
-> ⚠️ The rover starts driving right after reset, including right after flashing. USB power alone can spin the motors, so lift the rover before flashing.
-
-### Checking wheel direction
-After changing the wiring, build the check mode, which spins each wheel in turn and prints its encoder counts:
-
-```sh
-idf.py -B build_check -DCMAKE_C_FLAGS=-DROVER_CHECK_MODE=1 build
-```
-
-Then adjust `LEFT_IS_A`, `MOTOR_*_INVERT` and `ENC_*_INVERT` in `config.h`.
 
 ## Roadmap
-- Read the LiDAR scans and build a map with SLAM
+- Run `c-slam-bridge` and `host/ruby-slam` with the LiDAR mounted; check the X2's angle offset
+- Loop closure for the SLAM
 - Tune the wheel speed controller
 - Add a power switch, and replace the L7805 with a switching regulator
 

@@ -9,7 +9,7 @@
 
 #include <math.h>
 
-#include "config.h"
+#include "rover_config.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
 
